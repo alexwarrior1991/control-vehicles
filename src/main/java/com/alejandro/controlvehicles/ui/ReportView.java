@@ -17,7 +17,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -37,7 +37,8 @@ public final class ReportView implements AppView {
     private final MonthSelector month = new MonthSelector();
     private final TableView<MonthlyReport.Line> vehicles = lineTable(true);
     private final TableView<MonthlyReport.Line> drivers = lineTable(false);
-    private final GridPane totals = new GridPane();
+    private final FlowPane figures = new FlowPane(22, 8);
+    private final Label totalsNote = new Label();
     private final BarChart<String, Number> chart = new BarChart<>(new CategoryAxis(), new NumberAxis());
     private MonthlyReport report;
 
@@ -50,9 +51,9 @@ public final class ReportView implements AppView {
         top.setAlignment(Pos.CENTER_LEFT);
         top.setPadding(new Insets(0, 0, 10, 0));
 
-        totals.setHgap(24);
-        totals.setVgap(4);
-        totals.setPadding(new Insets(4, 0, 10, 0));
+        figures.setPadding(new Insets(4, 0, 4, 0));
+        totalsNote.getStyleClass().add("field-hint");
+        totalsNote.setWrapText(true);
         chart.setTitle("Fuel per vehicle: real vs expected (€)");
         chart.setAnimated(false);
         chart.setLegendVisible(true);
@@ -62,8 +63,10 @@ public final class ReportView implements AppView {
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         SplitPane split = new SplitPane(tabs, chart);
         split.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        split.setDividerPositions(0.6);
-        root.setTop(new VBox(top, totals));
+        split.setDividerPositions(0.58);
+        VBox header = new VBox(4, top, figures, totalsNote);
+        header.setPadding(new Insets(0, 0, 10, 0));
+        root.setTop(header);
         root.setCenter(split);
     }
 
@@ -87,7 +90,7 @@ public final class ReportView implements AppView {
         vehicles.getItems().setAll(loaded.vehicles());
         drivers.getItems().setAll(loaded.drivers());
         MonthlyReport.Line t = loaded.total();
-        totals.getChildren().clear();
+        figures.getChildren().clear();
         figure(0, "Real spend (refuels)", Formats.money(t.realSpend()) + " €");
         figure(1, "Expected by Google km", Formats.money(t.expectedCost()) + " €");
         figure(2, "Expected by odometer km", Formats.money(t.odometerCost()) + " €");
@@ -97,12 +100,9 @@ public final class ReportView implements AppView {
                 + Formats.money(t.tollsEstimated()) + " €");
         figure(6, "Unrecorded km", Formats.km(t.unrecordedKm()));
         figure(7, "Divergences", String.valueOf(t.divergences()));
-        if (t.pendingTrips() > 0 || t.tripsWithoutPrice() > 0) {
-            Label note = new Label(t.pendingTrips() + " trips still wait for the next one to know their odometer km; "
-                    + t.tripsWithoutPrice() + " have no fuel price.");
-            note.getStyleClass().add("field-hint");
-            totals.add(note, 0, 2, 8, 1);
-        }
+        totalsNote.setText(t.pendingTrips() > 0 || t.tripsWithoutPrice() > 0
+                ? t.pendingTrips() + " trips still wait for the next one to know their odometer km; "
+                + t.tripsWithoutPrice() + " have no fuel price." : "");
 
         XYChart.Series<String, Number> real = new XYChart.Series<>();
         real.setName("Real (refuels)");
@@ -120,39 +120,41 @@ public final class ReportView implements AppView {
         chart.getData().setAll(List.of(real, expected, odometer));
     }
 
-    private void figure(int column, String label, String value) {
+    private void figure(int order, String label, String value) {
         Label caption = new Label(label);
         caption.getStyleClass().add("figure-caption");
         Label number = new Label(value);
         number.getStyleClass().add("figure-value");
-        totals.add(caption, column, 0);
-        totals.add(number, column, 1);
+        figures.getChildren().add(new VBox(2, caption, number));
     }
 
     private static TableView<MonthlyReport.Line> lineTable(boolean vehicle) {
-        TableView<MonthlyReport.Line> table = Tables.wide(Tables.table("Nothing happened in this month."));
-        javafx.scene.control.TableColumn<MonthlyReport.Line, String> name =
-                Tables.text(vehicle ? "Vehicle" : "Driver", MonthlyReport.Line::name);
-        name.setPrefWidth(220);
-        table.getColumns().add(name);
-        table.getColumns().add(Tables.number("Trips", MonthlyReport.Line::trips, String::valueOf));
-        table.getColumns().add(Tables.number("Odometer km", MonthlyReport.Line::odometerKm, Formats::km));
-        table.getColumns().add(Tables.number("Unrecorded km", MonthlyReport.Line::unrecordedKm, Formats::km));
-        table.getColumns().add(Tables.number("Google km", MonthlyReport.Line::googleKm, Formats::km));
-        table.getColumns().add(Tables.number("Gap km", MonthlyReport.Line::gapKm, Formats::km));
+        TableView<MonthlyReport.Line> table = Tables.table("Nothing happened in this month.");
+        table.getColumns().add(Tables.width(Tables.text(vehicle ? "Vehicle" : "Driver", MonthlyReport.Line::name),
+                vehicle ? 170 : 140));
+        table.getColumns().add(Tables.width(Tables.number("Trips", MonthlyReport.Line::trips, String::valueOf), 60));
+        table.getColumns().add(Tables.group("Km",
+                Tables.width(Tables.number("Odometer", MonthlyReport.Line::odometerKm, Formats::km), 85),
+                Tables.width(Tables.number("Unrec.", MonthlyReport.Line::unrecordedKm, Formats::km), 70),
+                Tables.width(Tables.number("Google", MonthlyReport.Line::googleKm, Formats::km), 75),
+                Tables.width(Tables.number("Gap", MonthlyReport.Line::gapKm, Formats::km), 70)));
         if (vehicle) {
-            table.getColumns().add(Tables.number("Nominal l/100", MonthlyReport.Line::nominalL100, Formats::decimal));
-            table.getColumns().add(Tables.number("Measured l/100", MonthlyReport.Line::measuredL100,
-                    Formats::decimal));
+            table.getColumns().add(Tables.group("l/100 km",
+                    Tables.width(Tables.number("Nominal", MonthlyReport.Line::nominalL100, Formats::decimal), 75),
+                    Tables.width(Tables.number("Measured", MonthlyReport.Line::measuredL100, Formats::decimal), 85)));
         }
-        table.getColumns().add(Tables.number("Litres", MonthlyReport.Line::litresRefuelled, Formats::decimal));
-        table.getColumns().add(Tables.number("Real €", MonthlyReport.Line::realSpend, ReportView::money));
-        table.getColumns().add(Tables.number("Expected €", MonthlyReport.Line::expectedCost, ReportView::money));
-        table.getColumns().add(Tables.number("Odometer €", MonthlyReport.Line::odometerCost, ReportView::money));
-        table.getColumns().add(Tables.number("Real − expected €", MonthlyReport.Line::costGap, ReportView::money));
-        table.getColumns().add(Tables.number("Tolls €", MonthlyReport.Line::tollsDeclared, ReportView::money));
-        table.getColumns().add(Tables.number("Google tolls €", MonthlyReport.Line::tollsEstimated, ReportView::money));
-        table.getColumns().add(Tables.number("Divergences", MonthlyReport.Line::divergences, String::valueOf));
+        table.getColumns().add(Tables.width(Tables.number("Litres", MonthlyReport.Line::litresRefuelled,
+                Formats::decimal), 70));
+        table.getColumns().add(Tables.group("Fuel €",
+                Tables.width(Tables.number("Real", MonthlyReport.Line::realSpend, ReportView::money), 80),
+                Tables.width(Tables.number("Expected", MonthlyReport.Line::expectedCost, ReportView::money), 85),
+                Tables.width(Tables.number("By odo.", MonthlyReport.Line::odometerCost, ReportView::money), 80),
+                Tables.width(Tables.number("Gap", MonthlyReport.Line::costGap, ReportView::money), 75)));
+        table.getColumns().add(Tables.group("Tolls €",
+                Tables.width(Tables.number("Paid", MonthlyReport.Line::tollsDeclared, ReportView::money), 65),
+                Tables.width(Tables.number("Google", MonthlyReport.Line::tollsEstimated, ReportView::money), 70)));
+        table.getColumns().add(Tables.width(Tables.number("Issues", MonthlyReport.Line::divergences,
+                String::valueOf), 70));
         return table;
     }
 

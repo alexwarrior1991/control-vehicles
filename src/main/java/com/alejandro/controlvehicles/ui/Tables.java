@@ -22,6 +22,8 @@ public final class Tables {
     public static <T> TableView<T> table(String emptyText) {
         TableView<T> table = new TableView<>();
         table.setPlaceholder(new Label(emptyText));
+        // El «+» de la cabecera deja esconder y volver a enseñar columnas.
+        table.setTableMenuButtonVisible(true);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         return table;
     }
@@ -33,6 +35,19 @@ public final class Tables {
     public static <T> TableView<T> wide(TableView<T> table) {
         table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         return table;
+    }
+
+    /** A header over several columns, so that each one can carry a short title ("Km" over "Odometer", "Google"). */
+    @SafeVarargs
+    public static <T> TableColumn<T, ?> group(String title, TableColumn<T, ?>... columns) {
+        TableColumn<T, Object> group = new TableColumn<>(title);
+        group.getColumns().addAll(columns);
+        return group;
+    }
+
+    public static <T, C extends TableColumn<T, ?>> C width(C column, double width) {
+        column.setPrefWidth(width);
+        return column;
     }
 
     public static <T> TableColumn<T, String> text(String title, Function<T, String> value) {

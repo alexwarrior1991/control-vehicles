@@ -73,9 +73,9 @@ public final class RefuelsView implements AppView {
         table.getColumns().add(Tables.number("Litres", Refuel::litres, Formats::decimal));
         table.getColumns().add(Tables.number("Amount €", Refuel::totalAmount, Formats::money));
         table.getColumns().add(Tables.number("€/l", Refuel::pricePerLitre, Formats::pricePerLitre));
-        table.getColumns().add(Tables.text("Full tank", r -> r.fullTank() ? "Yes" : "No"));
-        table.getColumns().add(Tables.text("Station", r -> join(r.brand(), r.station())));
-        table.getColumns().add(Tables.text("Country", r -> r.country() == null ? "" : r.country().label()));
+        table.getColumns().add(Tables.width(Tables.text("Full", r -> r.fullTank() ? "Yes" : "No"), 60));
+        table.getColumns().add(Tables.width(Tables.text("Station", r -> join(r.brand(), r.station())
+                + (r.country() == null ? "" : " (" + r.country().name() + ")")), 200));
         Tables.onDoubleClick(table, this::edit);
 
         segments.getColumns().add(Tables.number("From", s -> s.from().refuelAt(), Formats::dateTime));
