@@ -24,6 +24,7 @@ import com.alejandro.controlvehicles.service.RefuelService;
 import com.alejandro.controlvehicles.service.ReportService;
 import com.alejandro.controlvehicles.service.SettingsService;
 import com.alejandro.controlvehicles.service.TripService;
+import com.alejandro.controlvehicles.service.imports.RefuelImportService;
 
 import java.nio.file.Path;
 import java.time.Clock;
@@ -47,6 +48,7 @@ public final class AppContext {
     public final AnalysisService analysis;
     public final ReportService reports;
     public final DatabaseTransferService transfer;
+    public final RefuelImportService refuelImport;
     public final CsvExporter csv = new CsvExporter();
 
     /** Where the external services are; only the tests point them elsewhere. */
@@ -63,7 +65,8 @@ public final class AppContext {
 
     public AppContext(Path home, Clock clock, Endpoints endpoints) {
         database = new Database(home.resolve("control-vehicles.db")).initialize();
-        settings = new SettingsService(new SettingRepository(database), home.resolve("settings.properties"));
+        SettingRepository settingRepository = new SettingRepository(database);
+        settings = new SettingsService(settingRepository, home.resolve("settings.properties"));
 
         DriverRepository driverRepository = new DriverRepository(database);
         VehicleRepository vehicleRepository = new VehicleRepository(database);
@@ -87,6 +90,8 @@ public final class AppContext {
         refuels = new RefuelService(refuelRepository, vehicleRepository, driverRepository, analysis);
         reports = new ReportService(vehicleRepository, driverRepository, tripRepository, refuelRepository, analysis);
         transfer = new DatabaseTransferService(database, clock);
+        refuelImport = new RefuelImportService(vehicleRepository, tripRepository, refuelRepository, settingRepository,
+                settings::load);
     }
 
     public static Path defaultHome() {

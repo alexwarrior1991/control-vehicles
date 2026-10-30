@@ -7,6 +7,7 @@ import com.alejandro.controlvehicles.domain.Place;
 import com.alejandro.controlvehicles.domain.PriceQuote;
 import com.alejandro.controlvehicles.domain.Trip;
 import com.alejandro.controlvehicles.domain.Vehicle;
+import com.alejandro.controlvehicles.service.Inputs;
 import com.alejandro.controlvehicles.service.SaveResult;
 import com.alejandro.controlvehicles.service.ValidationException;
 import javafx.scene.Node;

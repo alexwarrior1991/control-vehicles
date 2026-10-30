@@ -18,6 +18,7 @@ import com.alejandro.controlvehicles.service.AppSettings;
 import com.alejandro.controlvehicles.service.MonthlyReport;
 import com.alejandro.controlvehicles.service.SaveResult;
 import com.alejandro.controlvehicles.service.TripRow;
+import com.alejandro.controlvehicles.service.TripService;
 import com.alejandro.controlvehicles.service.ValidationException;
 import com.alejandro.controlvehicles.support.FakeHttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -121,6 +122,47 @@ class ServicesTest {
 
         server.onFixture("/directions/v2:computeRoutes", "routes-with-tolls.json");
         assertNotNull(app.trips.recalculate(result.saved().id()).saved().route());
+    }
+
+    @Test
+    void pendingTripsAreCompletedInOneGo() {
+        server.on("/directions/v2:computeRoutes", r -> new FakeHttpServer.Response(503, "{}"));
+        app.trips.save(trip(TODAY.minusDays(2), "08:00", "09:10", madrid, toledo, 100_000), null);
+        app.trips.save(trip(TODAY.minusDays(1), "08:00", "09:10", toledo, madrid, 100_080),
+                PriceQuote.manual(new BigDecimal("1.399")));
+        assertEquals(2, app.trips.pending().size());
+
+        server.onFixture("/directions/v2:computeRoutes", "routes-with-tolls.json");
+        TripService.PendingResult result = app.trips.completePending();
+
+        assertEquals(2, result.trips());
+        assertEquals(2, result.routesAdded());
+        assertFalse(result.googleStopped());
+        assertTrue(app.trips.pending().isEmpty());
+        assertEquals(new BigDecimal("1.399"), app.trips.rows().getFirst().trip().price().pricePerLitre(),
+                "a manual price is kept");
+    }
+
+    @Test
+    void withoutAKeyGoogleIsAskedOnceAndPricesAreStillCompleted() {
+        server.on("/miteco/EstacionesTerrestres", r -> new FakeHttpServer.Response(503, "{}"));
+        for (int day = 1; day <= 3; day++) {
+            server.on("/directions/v2:computeRoutes", r -> new FakeHttpServer.Response(503, "{}"));
+            app.trips.save(trip(TODAY.minusDays(day), "08:00", "09:10", madrid, toledo, 100_000 + day * 100), null);
+        }
+        assertTrue(app.trips.pending().stream().allMatch(t -> t.price() == null && t.route() == null));
+        app.settings.saveGoogleApiKey("");
+        server.onFixture("/miteco/EstacionesTerrestres", "miteco-stations.json");
+        int googleCalls = server.requests("/directions").size();
+
+        TripService.PendingResult result = app.trips.completePending();
+
+        assertTrue(result.googleStopped());
+        assertEquals(0, result.routesAdded());
+        assertEquals(3, result.pricesAdded());
+        assertEquals(googleCalls, server.requests("/directions").size(), "no key: nothing sent to Google");
+        assertTrue(result.problems().stream().anyMatch(p -> p.contains("No Google API key")), result.problems()
+                .toString());
     }
 
     @Test
@@ -337,7 +379,7 @@ class ServicesTest {
     }
 
     private Refuel refuel(LocalDateTime at, int odometer, String litres, String amount, boolean full) {
-        return new Refuel(null, vehicle.id(), driver.id(), at, odometer, new BigDecimal(litres),
+        return new Refuel(null, vehicle.id(), driver.id(), at, odometer, false, new BigDecimal(litres),
                 new BigDecimal(amount), full, null, "Galp", Country.ES, null);
     }
 }

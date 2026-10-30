@@ -5,6 +5,7 @@ import com.alejandro.controlvehicles.domain.Country;
 import com.alejandro.controlvehicles.domain.Formats;
 import com.alejandro.controlvehicles.domain.FuelPrice;
 import com.alejandro.controlvehicles.domain.FuelType;
+import com.alejandro.controlvehicles.service.Inputs;
 import com.alejandro.controlvehicles.service.ValidationException;
 import javafx.geometry.Insets;
 import javafx.scene.Node;

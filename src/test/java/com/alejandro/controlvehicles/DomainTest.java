@@ -8,6 +8,7 @@ import com.alejandro.controlvehicles.domain.DivergenceKind;
 import com.alejandro.controlvehicles.domain.DivergenceRules;
 import com.alejandro.controlvehicles.domain.DivergenceThresholds;
 import com.alejandro.controlvehicles.domain.FleetAnalysis;
+import com.alejandro.controlvehicles.domain.OdometerEstimator;
 import com.alejandro.controlvehicles.domain.OdometerLedger;
 import com.alejandro.controlvehicles.domain.RouteEstimate;
 import com.alejandro.controlvehicles.domain.Severity;
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import static com.alejandro.controlvehicles.support.Fixtures.estimated;
 import static com.alejandro.controlvehicles.support.Fixtures.refuel;
 import static com.alejandro.controlvehicles.support.Fixtures.trip;
 import static com.alejandro.controlvehicles.support.Fixtures.vehicle;
@@ -216,6 +218,45 @@ class DomainTest {
         assertEquals(Severity.WARNING, divergence.severity());
         assertEquals(4L, divergence.refuelId());
         assertTrue(DivergenceRules.consumption(segment, vehicle(1, "6.5"), RULES).isEmpty());
+    }
+
+    @Test
+    void anEstimatedOdometerIsNeverAConsumptionBoundaryButItsLitresCount() {
+        List<ConsumptionSegment> segments = ConsumptionCalculator.segments(1, List.of(
+                refuel(1, 1, "2026-10-01T10:00", 1000, "40", "60", true),
+                estimated(refuel(2, 1, "2026-10-04T10:00", 1150, "20", "30", true)),
+                refuel(3, 1, "2026-10-08T10:00", 1400, "8", "12", true)));
+
+        assertEquals(1, segments.size());
+        assertEquals(400, segments.getFirst().km());
+        assertEquals(new BigDecimal("7.00"), segments.getFirst().litresPer100Km(), "(20 + 8) l over 400 km");
+    }
+
+    @Test
+    void theEstimateIsTheLastReliableReadingBeforeTheMoment() {
+        Vehicle vehicle = vehicle(1, "6");
+        List<Trip> trips = List.of(withEnd(trip(1, 1, 1, "2026-10-01", "08:00", "09:00", 1000), 1080),
+                trip(2, 1, 1, "2026-10-02", "08:00", "09:00", 1100));
+        List<com.alejandro.controlvehicles.domain.Refuel> refuels = List.of(
+                refuel(1, 1, "2026-10-01T12:00", 1090, "30", "45", true),
+                estimated(refuel(2, 1, "2026-10-01T13:00", 5000, "30", "45", true)));
+
+        assertEquals(0, OdometerEstimator.estimate(vehicle, trips, refuels,
+                java.time.LocalDateTime.parse("2026-09-30T12:00")), "nothing before: the initial odometer");
+        assertEquals(1000, OdometerEstimator.estimate(vehicle, trips, refuels,
+                java.time.LocalDateTime.parse("2026-10-01T08:30")), "during a trip: its start");
+        assertEquals(1090, OdometerEstimator.estimate(vehicle, trips, refuels,
+                java.time.LocalDateTime.parse("2026-10-01T18:00")), "an estimated refuel is no reading");
+        assertEquals(1100, OdometerEstimator.estimate(vehicle, trips, refuels,
+                java.time.LocalDateTime.parse("2026-10-03T08:00")));
+    }
+
+    @Test
+    void anEstimatedRefuelIsNotCheckedAgainstTheTrips() {
+        Trip before = trip(1, 1, 1, "2026-10-01", "08:00", "09:00", 1000);
+        Trip after = trip(2, 1, 1, "2026-10-02", "08:00", "09:00", 1100);
+        assertTrue(DivergenceRules.refuelSequence(estimated(refuel(1, 1, "2026-10-01T12:00", 1150, "30", "45",
+                true)), before, after).isEmpty());
     }
 
     @Test

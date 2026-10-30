@@ -9,7 +9,7 @@ the drivers declare, every refuel, what the fuel should have cost and what it re
 | Screen | What for |
 |---|---|
 | **Trips** | Register a trip as the driver declares it: vehicle, driver, date, start and end time, origin and destination (Google Places autocomplete), **odometer at the start**, odometer at the end if it was noted, and tolls paid. Google Routes adds the real distance, driving time and estimated tolls; the price of a litre that day around the origin is added too. |
-| **Refuels** | Litres, amount, odometer and whether the tank was filled. Below, the consumption measured between two full tanks against the vehicle's nominal one. |
+| **Refuels** | Litres, amount, odometer and whether the tank was filled, typed or **imported from the Galp Frota statement**. Below, the consumption measured between two full tanks against the vehicle's nominal one. |
 | **Divergences** | Everything that does not add up, the worst first (see below). |
 | **Monthly report** | Per vehicle and per driver: odometer km vs Google km, real spend (refuels) vs expected cost (Google km × nominal consumption × price) and the cost by odometer km, tolls declared vs estimated. Exported to CSV for Excel. |
 | **Drivers / Vehicles** | The fleet. One with trips is deactivated, never deleted. |
@@ -45,6 +45,29 @@ another odometer reading: one that does not fit between the trips around it is f
 | Refuel odometer out of sequence | the refuel's odometer is not between the trips around it |
 | Refuel above tank capacity | more litres than the tank holds (+2 %) |
 | Measured vs nominal consumption | more than 15 % between two full tanks |
+
+### Importing the Galp Frota statement
+
+*Refuels → Import Galp Frota statement…* reads a CSV (`;`, `,` or tab; UTF-8 or Windows-1252) or an `.xlsx`
+(first sheet; an old `.xls` must be saved as `.xlsx` or CSV first) from any fuel card portal:
+
+- **Columns are chosen at import time** — date, plate, litres and amount are required; time, odometer, station
+  and product are optional. The usual Spanish, Portuguese and English headers are recognised, and the mapping
+  used last time is proposed again.
+- A **preview** says what each line will do before anything is stored: *Import*, *Already imported* (same
+  vehicle, minute, litres and amount), *Unknown plate* (add the vehicle and import again), *Not fuel* (AdBlue,
+  washes, shop, tolls…) or *Invalid* (with the reason). Plates match without spaces or dashes.
+- Every imported refuel is **Galp and a full tank**; untick «Tank filled up» on the ones that were not.
+- A line **without odometer** gets an **estimated** one — the last reading known before it from the trips and
+  the refuels — shown as `~120,150 (est.)`. An estimated refuel never sets a consumption boundary (its litres
+  still count) nor an odometer check; typing the real reading clears the mark.
+
+### Completing pending trips
+
+A trip saved while Google or the price service did not answer has no route or no price.
+*Trips → Complete missing routes and prices (N)* asks for all of them in one go, keeping manual prices. If
+Google does not answer at all or refuses the key, it is not asked again for the rest (the prices are still
+completed), so a bad key does not fire one call per trip.
 
 ### Fuel prices
 

@@ -145,9 +145,12 @@ public final class DivergenceRules {
 
     /**
      * A refuel's odometer must lie between the start of the last trip before it and the start of the first trip
-     * after it.
+     * after it. An estimated odometer is not checked: it came from those same trips.
      */
     public static Optional<Divergence> refuelSequence(Refuel refuel, Trip tripBefore, Trip tripAfter) {
+        if (refuel.odometerEstimated()) {
+            return Optional.empty();
+        }
         if (tripBefore != null && refuel.odometerKm() < tripBefore.startOdometerKm()) {
             return Optional.of(onRefuel(DivergenceKind.REFUEL_ODOMETER_OUT_OF_SEQUENCE, Severity.WARNING, refuel,
                     String.format(Locale.ENGLISH, "Refuel at %,d km, but the trip of %s started at %,d km",

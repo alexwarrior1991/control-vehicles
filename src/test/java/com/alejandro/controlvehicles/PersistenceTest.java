@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -88,6 +89,8 @@ class PersistenceTest {
                     + " VALUES ('1', 'DIESEL', '6', 'x', 'x')");
             st.execute("INSERT INTO trip (vehicle_id, driver_id, trip_date, start_time, end_time, start_odometer_km,"
                     + " created_at, updated_at) VALUES (1, 1, '2026-10-01', '08:00', '09:00', 1000, 'x', 'x')");
+            st.execute("INSERT INTO refuel (vehicle_id, refuel_at, odometer_km, litres, total_amount, created_at,"
+                    + " updated_at) VALUES (1, '2026-10-01T12:00', 1050, '30', '45', 'x', 'x')");
         }
 
         Database migrated = new Database(old).initialize();
@@ -98,6 +101,8 @@ class PersistenceTest {
         new TripRepository(migrated).save(new Trip(trip.id(), trip.vehicleId(), trip.driverId(), trip.date(),
                 trip.startTime(), trip.endTime(), null, null, 1000, 1060, trip.tollsPaid(), null, null, null));
         assertEquals(1060, new TripRepository(migrated).findAll().getFirst().endOdometerKm());
+        assertFalse(new RefuelRepository(migrated).findAll().getFirst().odometerEstimated(),
+                "refuels of an old database had their odometer read");
     }
 
     @Test
@@ -144,7 +149,7 @@ class PersistenceTest {
         Vehicle vehicle = new VehicleRepository(database).save(new Vehicle(null, "1", null, null, FuelType.GASOLINE,
                 new BigDecimal("7"), null, 0, true, null));
         new RefuelRepository(database).save(new Refuel(null, vehicle.id(), driver.id(),
-                LocalDateTime.of(2026, 10, 1, 9, 0), 10, new BigDecimal("30"), new BigDecimal("45"), true, null,
+                LocalDateTime.of(2026, 10, 1, 9, 0), 10, false, new BigDecimal("30"), new BigDecimal("45"), true, null,
                 "Galp", Country.PT, null));
 
         DataAccessException e = assertThrows(DataAccessException.class, () -> drivers.delete(driver.id()));

@@ -51,6 +51,7 @@ public final class TripsView implements AppView {
     private final CheckBox onlyDivergent = new CheckBox("Only with divergences");
     private final TableView<TripRow> table = Tables.table("No trips in this month.");
     private final Label summary = new Label();
+    private final Button completePending = new Button();
     private List<TripRow> all = List.of();
 
     public TripsView(AppContext context, HostServices hostServices) {
@@ -70,7 +71,8 @@ public final class TripsView implements AppView {
         maps.setOnAction(event -> selected(this::openInMaps));
         Button delete = new Button("Delete");
         delete.setOnAction(event -> selected(this::delete));
-        HBox actions = new HBox(8, add, edit, recalculate, maps, delete);
+        completePending.setOnAction(event -> completePending());
+        HBox actions = new HBox(8, add, edit, recalculate, maps, delete, completePending);
 
         vehicleFilter.setPrefWidth(220);
         driverFilter.setPrefWidth(180);
@@ -110,6 +112,10 @@ public final class TripsView implements AppView {
                     @SuppressWarnings("unchecked")
                     List<Driver> drivers = (List<Driver>) loaded[2];
                     all = rows;
+                    long pending = rows.stream().filter(row -> row.trip().route() == null
+                            || row.trip().price() == null).count();
+                    completePending.setText("Complete missing routes and prices (" + pending + ")");
+                    completePending.setDisable(pending == 0);
                     Choice.fill(vehicleFilter, "All vehicles", vehicles, Vehicle::label, Vehicle::id);
                     Choice.fill(driverFilter, "All drivers", drivers, Driver::name, Driver::id);
                     applyFilter();
@@ -235,6 +241,32 @@ public final class TripsView implements AppView {
     private void edit(TripRow row) {
         TripDialog.show(root, context, row == null ? null : row.trip(), row == null ? null : row.origin(),
                 row == null ? null : row.destination()).ifPresent(this::afterSave);
+    }
+
+    private void completePending() {
+        long count = all.stream().filter(row -> row.trip().route() == null || row.trip().price() == null).count();
+        if (!Dialogs.confirm("Complete " + count + " trips?", "Google is asked for the route of each trip without one"
+                + " and the price service for the price of each trip without one: up to " + count
+                + " calls to Google. A manual price is kept.")) {
+            return;
+        }
+        completePending.setDisable(true);
+        completePending.setText("Completing…");
+        Background.run(context.trips::completePending, result -> {
+            refresh();
+            List<String> lines = new java.util.ArrayList<>();
+            lines.add(result.routesAdded() + " routes and " + result.pricesAdded() + " prices added to "
+                    + result.trips() + " trips.");
+            if (result.googleStopped()) {
+                lines.add("Google stopped answering or refused the key, so it was not asked for the rest: check the"
+                        + " key in Settings and try again.");
+            }
+            result.problems().stream().limit(8).forEach(lines::add);
+            Dialogs.info("Pending trips", String.join("\n", lines));
+        }, failure -> {
+            refresh();
+            Dialogs.error(failure);
+        });
     }
 
     private void afterSave(SaveResult<?> result) {

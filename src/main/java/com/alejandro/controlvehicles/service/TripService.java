@@ -2,9 +2,10 @@ package com.alejandro.controlvehicles.service;
 
 import com.alejandro.controlvehicles.domain.Driver;
 import com.alejandro.controlvehicles.domain.FleetAnalysis;
+import com.alejandro.controlvehicles.domain.Formats;
+import com.alejandro.controlvehicles.domain.OdometerEstimator;
 import com.alejandro.controlvehicles.domain.Place;
 import com.alejandro.controlvehicles.domain.PriceQuote;
-import com.alejandro.controlvehicles.domain.Refuel;
 import com.alejandro.controlvehicles.domain.RouteEstimate;
 import com.alejandro.controlvehicles.domain.Trip;
 import com.alejandro.controlvehicles.domain.Vehicle;
@@ -19,10 +20,12 @@ import com.alejandro.controlvehicles.persistence.VehicleRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -59,6 +62,14 @@ public final class TripService {
      * has none or its day, origin or vehicle changed. A manual price always wins.
      */
     public SaveResult<Trip> save(Trip trip, PriceQuote manualPrice) {
+        return save(trip, manualPrice, true).result();
+    }
+
+    /** A save, and why Google gave no route, to tell a missing key or network from a route it could not find. */
+    private record Outcome(SaveResult<Trip> result, ExternalApiException routeFailure) {
+    }
+
+    private Outcome save(Trip trip, PriceQuote manualPrice, boolean askGoogle) {
         Vehicle vehicle = vehicles.findById(trip.vehicleId())
                 .orElseThrow(() -> new ValidationException("Choose a vehicle"));
         drivers.findById(trip.driverId()).orElseThrow(() -> new ValidationException("Choose a driver"));
@@ -76,16 +87,18 @@ public final class TripService {
         Place destination = places.findById(trip.destinationPlaceId()).orElseThrow();
         Trip stored = trip.id() == null ? null : trips.findById(trip.id()).orElse(null);
         List<String> warnings = new ArrayList<>();
+        ExternalApiException routeFailure = null;
 
         Trip result = trip;
         boolean placesChanged = stored == null
                 || !Objects.equals(stored.originPlaceId(), trip.originPlaceId())
                 || !Objects.equals(stored.destinationPlaceId(), trip.destinationPlaceId());
         RouteEstimate route = placesChanged || stored.route() == null ? null : stored.route();
-        if (route == null) {
+        if (route == null && askGoogle) {
             try {
                 route = routes.route(origin, destination, vehicle.fuelType());
             } catch (ExternalApiException e) {
+                routeFailure = e;
                 warnings.add("Google route not calculated: " + e.getMessage());
             }
         }
@@ -110,7 +123,56 @@ public final class TripService {
         Trip saved = trips.save(result);
         places.markUsed(origin.id());
         places.markUsed(destination.id());
-        return new SaveResult<>(saved, warnings);
+        return new Outcome(new SaveResult<>(saved, warnings), routeFailure);
+    }
+
+    /** What {@link #completePending()} managed. {@code problems}: the first message of each kind. */
+    public record PendingResult(int trips, int routesAdded, int pricesAdded, List<String> problems,
+                                boolean googleStopped) {
+    }
+
+    /** Trips with their origin and destination but no Google route or no fuel price. */
+    public List<Trip> pending() {
+        return trips.findAll().stream()
+                .filter(t -> t.originPlaceId() != null && t.destinationPlaceId() != null)
+                .filter(t -> t.route() == null || t.price() == null)
+                .toList();
+    }
+
+    /**
+     * Asks Google and the price service for every pending trip, keeping what each one already has (and a manual
+     * price). When Google does not answer at all, or refuses the key, it is not asked again for the rest: prices
+     * are still completed.
+     */
+    public PendingResult completePending() {
+        List<Trip> pending = pending();
+        int routesAdded = 0;
+        int pricesAdded = 0;
+        boolean askGoogle = true;
+        Set<String> problems = new LinkedHashSet<>();
+        for (Trip trip : pending) {
+            if (!askGoogle && trip.price() != null) {
+                continue;
+            }
+            Outcome outcome;
+            try {
+                outcome = save(trip, trip.price() != null && trip.price().isManual() ? trip.price() : null,
+                        askGoogle);
+            } catch (ValidationException e) {
+                problems.add(Formats.date(trip.date()) + ": " + e.getMessage());
+                continue;
+            }
+            Trip saved = outcome.result().saved();
+            routesAdded += trip.route() == null && saved.route() != null ? 1 : 0;
+            pricesAdded += trip.price() == null && saved.price() != null ? 1 : 0;
+            outcome.result().warnings().forEach(warning -> problems.add(warning.replaceAll("\\d{4}-\\d{2}-\\d{2}",
+                    "the trip's day")));
+            ExternalApiException failure = outcome.routeFailure();
+            if (failure != null && (failure.status() == 0 || failure.status() == 401 || failure.status() == 403)) {
+                askGoogle = false;
+            }
+        }
+        return new PendingResult(pending.size(), routesAdded, pricesAdded, List.copyOf(problems), !askGoogle);
     }
 
     /** Asks Google and the price service again, keeping a manual price. */
@@ -130,23 +192,13 @@ public final class TripService {
     }
 
     /**
-     * The odometer to propose for a new trip: the highest reading known before that moment, from the trips'
-     * starts and noted ends or from the refuels (a refuel is a later reading than the trip it happened in).
+     * The odometer to propose for a new trip: the highest reading known before that moment ({@link
+     * OdometerEstimator}: trips' starts and noted ends, and refuels whose odometer was read).
      */
     public int suggestedStartOdometer(long vehicleId, LocalDateTime startAt) {
-        int best = vehicles.findById(vehicleId).map(Vehicle::initialOdometerKm).orElse(0);
-        for (Trip trip : trips.findByVehicle(vehicleId)) {
-            if (trip.startAt().isBefore(startAt)) {
-                best = Math.max(best, trip.endOdometerKm() != null && !trip.endAt().isAfter(startAt)
-                        ? trip.endOdometerKm() : trip.startOdometerKm());
-            }
-        }
-        for (Refuel refuel : refuels.findAll()) {
-            if (refuel.vehicleId() == vehicleId && refuel.refuelAt().isBefore(startAt)) {
-                best = Math.max(best, refuel.odometerKm());
-            }
-        }
-        return best;
+        return vehicles.findById(vehicleId).map(vehicle -> OdometerEstimator.estimate(vehicle,
+                trips.findByVehicle(vehicleId), refuels.findAll().stream()
+                        .filter(r -> r.vehicleId() == vehicleId).toList(), startAt.minusNanos(1))).orElse(0);
     }
 
     /** Every trip with its odometer distance and divergences, most recent first. */

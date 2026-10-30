@@ -27,6 +27,12 @@ does not extend `Application`.
   kilometres up to the next start are unrecorded use (`OdometerLedger`). Distances are always derived, never
   stored. Everything derived (distances, unrecorded km, consumption, divergences) comes from `FleetAnalysis`,
   computed over all trips and refuels each time.
+- A refuel imported without odometer has an **estimated** one (`refuel.odometer_estimated`, `V3`, from
+  `OdometerEstimator`): it is never a consumption boundary (its litres still count) and never checked against the
+  trips; estimates never feed other estimates or the odometer proposed for a new trip.
+- The statement importer (`service/imports`) reads CSV and .xlsx with the JDK alone: no Apache POI on purpose.
+  Columns are mapped by header name (`RefuelImportMapping`, saved in `app_setting`), never by position.
+  Parsing of numbers, times and dates is `service.Inputs`, shared by the screens and the importer.
 - `domain` has no JDBC, JavaFX or HTTP; its rules are pure and tested in `DomainTest`.
 - Money and litres are `BigDecimal`, stored as TEXT; dates as ISO TEXT. Google distances are kept in metres and
   turned into exact km (`RouteEstimate.distanceKm`); only the screens round.
@@ -47,5 +53,5 @@ does not extend `Application`.
 
 `DomainTest` (rules), `PersistenceTest` (SQLite on a temp file), `ClientsTest` (Google, MITECO, DGEG against
 fixtures in `src/test/resources/fixtures`), `ServicesTest` (the whole `AppContext` against the fake server:
-saving trips, prices and their fallbacks, the monthly report, CSV, export/import), `InputsTest` (typed numbers
-and times). Screens are not unit-tested.
+saving trips, prices and their fallbacks, the monthly report, CSV, export/import), `ImportTest` (CSV and .xlsx
+reading, the column guess and the import rules), `InputsTest` (typed numbers, times and dates). Screens are not unit-tested.

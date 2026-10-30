@@ -45,9 +45,15 @@ public final class Fixtures {
         return trip.withPrice(new PriceQuote(new BigDecimal(price), "test"));
     }
 
+    public static Refuel estimated(Refuel refuel) {
+        return new Refuel(refuel.id(), refuel.vehicleId(), refuel.driverId(), refuel.refuelAt(), refuel.odometerKm(),
+                true, refuel.litres(), refuel.totalAmount(), refuel.fullTank(), refuel.station(), refuel.brand(),
+                refuel.country(), refuel.notes());
+    }
+
     public static Refuel refuel(long id, long vehicleId, String at, int odometer, String litres, String amount,
                                 boolean full) {
-        return new Refuel(id, vehicleId, null, LocalDateTime.parse(at), odometer, new BigDecimal(litres),
+        return new Refuel(id, vehicleId, null, LocalDateTime.parse(at), odometer, false, new BigDecimal(litres),
                 new BigDecimal(amount), full, null, "Galp", null, null);
     }
 }

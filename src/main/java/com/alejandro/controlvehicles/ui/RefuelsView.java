@@ -7,6 +7,7 @@ import com.alejandro.controlvehicles.domain.Driver;
 import com.alejandro.controlvehicles.domain.Formats;
 import com.alejandro.controlvehicles.domain.Refuel;
 import com.alejandro.controlvehicles.domain.Vehicle;
+import com.alejandro.controlvehicles.service.Inputs;
 import com.alejandro.controlvehicles.service.ValidationException;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -17,6 +18,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -62,7 +64,12 @@ public final class RefuelsView implements AppView {
         table.getColumns().add(Tables.text("Vehicle", r -> vehicleName(r.vehicleId())));
         table.getColumns().add(Tables.text("Driver", r -> r.driverId() == null ? ""
                 : drivers.containsKey(r.driverId()) ? drivers.get(r.driverId()).name() : "?"));
-        table.getColumns().add(Tables.number("Odometer km", Refuel::odometerKm, Formats::km));
+        TableColumn<Refuel, String> odometerColumn = Tables.text("Odometer km",
+                r -> (r.odometerEstimated() ? "~" : "") + Formats.km(r.odometerKm())
+                        + (r.odometerEstimated() ? " (est.)" : ""));
+        odometerColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+        odometerColumn.setPrefWidth(150);
+        table.getColumns().add(odometerColumn);
         table.getColumns().add(Tables.number("Litres", Refuel::litres, Formats::decimal));
         table.getColumns().add(Tables.number("Amount €", Refuel::totalAmount, Formats::money));
         table.getColumns().add(Tables.number("€/l", Refuel::pricePerLitre, Formats::pricePerLitre));
@@ -88,12 +95,17 @@ public final class RefuelsView implements AppView {
         edit.setOnAction(event -> selected(this::edit));
         Button delete = new Button("Delete");
         delete.setOnAction(event -> selected(this::delete));
+        Button importStatement = new Button("Import Galp Frota statement…");
+        importStatement.setOnAction(event -> RefuelImportDialog.show(root, context).ifPresent(result -> {
+            refresh();
+            Dialogs.info(result.imported() + " refuels imported", importSummary(result));
+        }));
         vehicleFilter.setPrefWidth(240);
         month.monthProperty().addListener((o, b, n) -> applyFilter());
         vehicleFilter.valueProperty().addListener((o, b, n) -> applyFilter());
         HBox filters = new HBox(10, month, vehicleFilter);
         filters.setAlignment(Pos.CENTER_LEFT);
-        VBox top = new VBox(10, filters, new HBox(8, add, edit, delete));
+        VBox top = new VBox(10, filters, new HBox(8, add, edit, delete, importStatement));
         top.setPadding(new Insets(0, 0, 10, 0));
 
         Label consumptionTitle = new Label("Measured consumption (full tank to full tank)");
@@ -178,6 +190,15 @@ public final class RefuelsView implements AppView {
         TextField time = new TextField(refuel == null ? "" : Formats.time(refuel.refuelAt().toLocalTime()));
         time.setPromptText("12:00");
         TextField odometer = new TextField(refuel == null ? "" : String.valueOf(refuel.odometerKm()));
+        CheckBox estimated = new CheckBox("Estimated (not on the receipt)");
+        estimated.setSelected(refuel != null && refuel.odometerEstimated());
+        odometer.textProperty().addListener((o, b, n) -> {
+            if (odometer.isFocused()) {
+                estimated.setSelected(false);
+            }
+        });
+        Label estimatedHint = new Label("An estimated odometer does not count for consumption or km checks.");
+        estimatedHint.getStyleClass().add("field-hint");
         TextField litres = new TextField(refuel == null ? "" : VehiclesView.plain(refuel.litres()));
         TextField amount = new TextField(refuel == null ? "" : VehiclesView.plain(refuel.totalAmount()));
         Label pricePerLitre = new Label();
@@ -219,7 +240,8 @@ public final class RefuelsView implements AppView {
         fullHint.setMaxWidth(420);
 
         FormGrid form = new FormGrid().add("Vehicle *", vehicle).add("Driver", driver).add("Date *", date)
-                .add("Time", time).add("Odometer (km) *", odometer).add("Litres *", litres)
+                .add("Time", time)
+                .add("Odometer (km) *", new VBox(2, odometer, estimated, estimatedHint)).add("Litres *", litres)
                 .add("Amount paid (€) *", new VBox(2, amount, pricePerLitre))
                 .add("", new VBox(2, full, fullHint)).add("Brand", brand).add("Station", station)
                 .add("Country", country).add("Notes", notes);
@@ -234,12 +256,37 @@ public final class RefuelsView implements AppView {
             Driver who = driver.getValue() == null ? null : driver.getValue().value();
             Refuel edited = new Refuel(refuel == null ? null : refuel.id(), vehicle.getValue().id(),
                     who == null ? null : who.id(), date.getValue().atTime(at),
-                    Inputs.integer(odometer.getText(), "Odometer", true), Inputs.decimal(litres.getText(), "Litres", true),
+                    Inputs.integer(odometer.getText(), "Odometer", true), estimated.isSelected(),
+                    Inputs.decimal(litres.getText(), "Litres", true),
                     Inputs.decimal(amount.getText(), "Amount", true), full.isSelected(), station.getText(),
                     brand.getText(), country.getValue(), notes.getText());
             Callable<Refuel> save = () -> context.refuels.save(edited);
             return save;
         }).ifPresent(saved -> refresh());
+    }
+
+    static String importSummary(com.alejandro.controlvehicles.service.imports.ImportResult result) {
+        List<String> lines = new ArrayList<>();
+        if (result.estimatedOdometers() > 0) {
+            lines.add(result.estimatedOdometers() + " with the odometer estimated from the trips: correct them in the"
+                    + " list when the real reading is known.");
+        }
+        if (result.duplicates() > 0) {
+            lines.add(result.duplicates() + " already imported, left out.");
+        }
+        if (result.notFuel() > 0) {
+            lines.add(result.notFuel() + " lines that are not fuel, left out.");
+        }
+        if (!result.unknownPlates().isEmpty()) {
+            lines.add("Plates without a vehicle (add them in Vehicles and import again): "
+                    + String.join(", ", result.unknownPlates()));
+        }
+        if (!result.invalid().isEmpty()) {
+            lines.add(result.invalid().size() + " lines could not be read:");
+            result.invalid().stream().limit(10).forEach(lines::add);
+        }
+        lines.add("Every imported refuel is marked as a full tank: untick the ones that were not.");
+        return String.join("\n", lines);
     }
 
     private void delete(Refuel refuel) {

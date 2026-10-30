@@ -4,6 +4,7 @@ import com.alejandro.controlvehicles.app.AppContext;
 import com.alejandro.controlvehicles.domain.Country;
 import com.alejandro.controlvehicles.domain.DivergenceThresholds;
 import com.alejandro.controlvehicles.service.AppSettings;
+import com.alejandro.controlvehicles.service.Inputs;
 import javafx.application.HostServices;
 import javafx.geometry.Insets;
 import javafx.scene.Node;

@@ -5,9 +5,13 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/** A refuel as it appears on the receipt, with the odometer at that moment. The driver is optional. */
+/**
+ * A refuel as it appears on the receipt, with the odometer at that moment. The driver is optional.
+ * {@code odometerEstimated}: the odometer was not on the receipt and was estimated from the trips (an imported card
+ * statement); such a refuel never sets a consumption boundary nor an odometer check.
+ */
 public record Refuel(Long id, long vehicleId, Long driverId, LocalDateTime refuelAt, int odometerKm,
-                     BigDecimal litres, BigDecimal totalAmount, boolean fullTank, String station, String brand,
+                     boolean odometerEstimated, BigDecimal litres, BigDecimal totalAmount, boolean fullTank, String station, String brand,
                      Country country, String notes) {
 
     public Refuel {
@@ -30,7 +34,7 @@ public record Refuel(Long id, long vehicleId, Long driverId, LocalDateTime refue
     }
 
     public Refuel withId(long newId) {
-        return new Refuel(newId, vehicleId, driverId, refuelAt, odometerKm, litres, totalAmount, fullTank, station,
+        return new Refuel(newId, vehicleId, driverId, refuelAt, odometerKm, odometerEstimated, litres, totalAmount, fullTank, station,
                 brand, country, notes);
     }
 }

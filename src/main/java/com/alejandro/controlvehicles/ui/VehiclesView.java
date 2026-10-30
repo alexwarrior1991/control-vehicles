@@ -4,6 +4,7 @@ import com.alejandro.controlvehicles.app.AppContext;
 import com.alejandro.controlvehicles.domain.Formats;
 import com.alejandro.controlvehicles.domain.FuelType;
 import com.alejandro.controlvehicles.domain.Vehicle;
+import com.alejandro.controlvehicles.service.Inputs;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
