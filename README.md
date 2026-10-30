@@ -89,31 +89,60 @@ and replaced. The **Google API key is not in the database**: it lives in `settin
 
 ## Running it
 
-Requirements: JDK 21 or newer (it runs on 25 too). Maven comes with the wrapper.
+Requirements: JDK 21 or newer (it runs on 25 too). Maven comes with the wrapper (`mvnw` / `mvnw.cmd`).
+
+### From IntelliJ
+
+The repository brings shared run configurations (`.run/`), so they appear in the run selector:
+
+| Configuration | What it does |
+|---|---|
+| **Control Vehicles** | Starts the application (`app.Launcher`) with your data in `~/.control-vehicles`. |
+| **Control Vehicles (sandbox data)** | The same with the data in `.local-data/` of the project, to try things without touching the real data. |
+| **javafx run** | `mvn javafx:run`. |
+| **tests** | `mvn test`. |
+
+Run `Launcher`, never `ControlVehiclesApp` directly: with JavaFX on the class path the main class must not extend
+`Application`. The warning *Unsupported JavaFX configuration* at start-up is expected and harmless.
+
+### As a jar
 
 ```bash
-./mvnw javafx:run          # run from the sources
-./mvnw test                # tests (no network, no Google key needed)
-./mvnw package             # target/control-vehicles.jar, a single jar for this operating system
+./mvnw package             # mvnw.cmd package on Windows
 java -jar target/control-vehicles.jar
 ```
 
-The jar carries the JavaFX of the operating system it was built on: build it on Windows for Windows. For an
-installer with its own Java, from that jar:
+The jar carries the JavaFX of the operating system it was built on: build it on Windows for Windows. The computer
+running it needs Java 21 or newer.
 
-```bash
-jpackage --name "Control Vehicles" --input target --main-jar control-vehicles.jar --type msi --win-menu --win-shortcut
-```
+### Windows application without installing Java
 
-Data lives in `~/.control-vehicles/` (`control-vehicles.db` and `settings.properties`); start with
-`-Dcontrolvehicles.home=<folder>` to use another one.
+`scripts\package-windows.cmd` (double-click it, or run it from a terminal; needs a JDK 21+, whose `jpackage` it
+uses) builds the jar and packages it with its own Java into `target\installer`:
+
+- with [WiX Toolset](https://wixtoolset.org/) on the PATH, an **.msi installer** with a Start menu entry and a
+  desktop shortcut;
+- without it, a **folder** `Control Vehicles` with `Control Vehicles.exe`: copy the whole folder to the other
+  computer.
+
+Each person's data lives in their own `C:\Users\<user>\.control-vehicles\`; hand the data over with
+*Settings → Export database*. Start with `-Dcontrolvehicles.home=<folder>` (VM option) to use another folder.
 
 ### Google API key
 
-In Google Cloud, create a project with billing, enable **Places API (New)** and **Routes API**, create an API key
-(restricted to those two APIs) and paste it in *Settings → Google*, then *Test the key*. Calls per trip: an
-autocomplete session per new place (stored places are reused without calling Google) and one route. Routes are
-asked without traffic, because trips are registered after they happened.
+1. In [Google Cloud Console](https://console.cloud.google.com) create a project and link a billing account
+   (required, even within the monthly free usage; a budget alert in *Billing → Budgets & alerts* is a good idea).
+2. *APIs & Services → Library*: enable **Places API (New)** (not the legacy «Places API») and **Routes API**.
+3. *APIs & Services → Credentials → Create credentials → API key*.
+4. Restrict the key: restriction type **API restrictions**, and tick only *Places API (New)* and *Routes API*.
+   Not *Websites*, *Android* or *iOS* restrictions: this is a desktop application, and Google would refuse its
+   calls. *IP addresses* only if the office has a fixed public IP.
+5. In the application, *Settings → Google → API key*: paste it, *Save key*, then *Test the key*.
+
+The key is stored only on that computer, in `~/.control-vehicles/settings.properties`, never in the database
+that gets exported: each person uses their own. Calls per trip: an autocomplete session per new place (stored
+places are reused without calling Google) and one route. Routes are asked without traffic, because trips are
+registered after they happened.
 
 ## Structure
 
