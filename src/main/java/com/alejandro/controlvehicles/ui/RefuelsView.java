@@ -55,7 +55,10 @@ public final class RefuelsView implements AppView {
 
     public RefuelsView(AppContext context) {
         this.context = context;
-        table.getColumns().add(Tables.number("Date", Refuel::refuelAt, Formats::dateTime));
+        javafx.scene.control.TableColumn<Refuel, java.time.LocalDateTime> date =
+                Tables.number("Date", Refuel::refuelAt, Formats::dateTime);
+        date.setPrefWidth(150);
+        table.getColumns().add(date);
         table.getColumns().add(Tables.text("Vehicle", r -> vehicleName(r.vehicleId())));
         table.getColumns().add(Tables.text("Driver", r -> r.driverId() == null ? ""
                 : drivers.containsKey(r.driverId()) ? drivers.get(r.driverId()).name() : "?"));

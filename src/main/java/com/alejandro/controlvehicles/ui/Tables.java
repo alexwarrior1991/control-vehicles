@@ -61,7 +61,7 @@ public final class Tables {
     }
 
     private static double headerWidth(String title) {
-        return Math.max(80, title.length() * 8 + 28);
+        return Math.max(90, title.length() * 9 + 30);
     }
 
     public static <T> void onDoubleClick(TableView<T> table, Consumer<T> action) {

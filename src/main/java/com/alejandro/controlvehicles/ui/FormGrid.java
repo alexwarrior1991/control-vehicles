@@ -20,7 +20,7 @@ public final class FormGrid extends GridPane {
         labels.setMinWidth(140);
         ColumnConstraints fields = new ColumnConstraints();
         fields.setHgrow(Priority.ALWAYS);
-        fields.setMinWidth(260);
+        fields.setMinWidth(360);
         getColumnConstraints().addAll(labels, fields);
     }
 

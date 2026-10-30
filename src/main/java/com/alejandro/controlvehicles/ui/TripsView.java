@@ -142,11 +142,14 @@ public final class TripsView implements AppView {
         Tables.wide(table);
         TableColumn<TripRow, java.time.LocalDateTime> date = Tables.number("Date", row -> row.trip().startAt(),
                 Formats::dateTime);
-        date.setPrefWidth(130);
+        date.setPrefWidth(150);
         table.getColumns().add(date);
         table.getColumns().add(Tables.text("End", row -> Formats.time(row.trip().endTime())));
         table.getColumns().add(Tables.text("Vehicle", row -> row.vehicle() == null ? "" : row.vehicle().plate()));
-        table.getColumns().add(Tables.text("Driver", row -> row.driver() == null ? "" : row.driver().name()));
+        TableColumn<TripRow, String> driverName = Tables.text("Driver",
+                row -> row.driver() == null ? "" : row.driver().name());
+        driverName.setPrefWidth(140);
+        table.getColumns().add(driverName);
         TableColumn<TripRow, String> origin = Tables.text("Origin", row -> placeName(row.origin()));
         origin.setPrefWidth(150);
         table.getColumns().add(origin);

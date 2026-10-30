@@ -96,3 +96,6 @@ src/main/java/com/alejandro/controlvehicles/
   service/      trips, refuels, prices, analysis, monthly report, CSV, settings, database export/import
   ui/           JavaFX screens built in code (no FXML), dialogs and helpers
 ```
+
+The interface uses **JetBrains Mono**, bundled in the jar (`ui/fonts/`, SIL Open Font License, `OFL.txt` next to
+it), so it looks the same on a computer that does not have the font installed.
