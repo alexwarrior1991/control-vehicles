@@ -1,0 +1,35 @@
+{
+  "Fecha": "30/10/2026 8:12:45",
+  "ListaEESSPrecio": [
+    {
+      "C.P.": "28001", "Dirección": "CALLE SERRANO, 50", "Horario": "L-D: 24H",
+      "Latitud": "40,427100", "Localidad": "MADRID", "Longitud (WGS84)": "-3,686900",
+      "Margen": "D", "Municipio": "Madrid", "Precio Gasoleo A": "1,459", "Precio Gasolina 95 E5": "1,589",
+      "Provincia": "MADRID", "Rótulo": "GALP", "IDEESS": "1"
+    },
+    {
+      "C.P.": "28045", "Dirección": "PASEO DE LAS DELICIAS, 10", "Horario": "L-D: 06:00-22:00",
+      "Latitud": "40,401000", "Localidad": "MADRID", "Longitud (WGS84)": "-3,694000",
+      "Margen": "I", "Municipio": "Madrid", "Precio Gasoleo A": "1,479", "Precio Gasolina 95 E5": "1,609",
+      "Provincia": "MADRID", "Rótulo": "GALP ENERGIA", "IDEESS": "2"
+    },
+    {
+      "C.P.": "28020", "Dirección": "CALLE BRAVO MURILLO, 300", "Horario": "L-D: 24H",
+      "Latitud": "40,456000", "Localidad": "MADRID", "Longitud (WGS84)": "-3,703000",
+      "Margen": "D", "Municipio": "Madrid", "Precio Gasoleo A": "1,399", "Precio Gasolina 95 E5": "",
+      "Provincia": "MADRID", "Rótulo": "REPSOL", "IDEESS": "3"
+    },
+    {
+      "C.P.": "45001", "Dirección": "AVENIDA DE EUROPA, 1", "Horario": "L-D: 24H",
+      "Latitud": "39,862800", "Localidad": "TOLEDO", "Longitud (WGS84)": "-4,027300",
+      "Margen": "D", "Municipio": "Toledo", "Precio Gasoleo A": "1,429", "Precio Gasolina 95 E5": "1,559",
+      "Provincia": "TOLEDO", "Rótulo": "CEPSA", "IDEESS": "4"
+    },
+    {
+      "C.P.": "00000", "Dirección": "SIN COORDENADAS", "Latitud": "", "Localidad": "X",
+      "Longitud (WGS84)": "", "Precio Gasoleo A": "1,000", "Rótulo": "GALP", "IDEESS": "5"
+    }
+  ],
+  "Nota": "Archivo de todos los productos en las estaciones de servicio.",
+  "ResultadoConsulta": "OK"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "ChIJgTwKgJcpQg0RaSKMYcHeNsQ",
+  "formattedAddress": "Madrid, Spain",
+  "location": {"latitude": 40.4167754, "longitude": -3.7037902},
+  "addressComponents": [
+    {"longText": "Madrid", "shortText": "Madrid", "types": ["locality", "political"], "languageCode": "en"},
+    {"longText": "Community of Madrid", "shortText": "MD", "types": ["administrative_area_level_1", "political"]},
+    {"longText": "Spain", "shortText": "ES", "types": ["country", "political"], "languageCode": "en"}
+  ],
+  "displayName": {"text": "Madrid", "languageCode": "en"}
+}

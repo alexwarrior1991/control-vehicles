@@ -1,0 +1,15 @@
+{
+  "routes": [
+    {
+      "distanceMeters": 72450,
+      "duration": "3960s",
+      "travelAdvisory": {
+        "tollInfo": {
+          "estimatedPrice": [
+            {"currencyCode": "EUR", "units": "7", "nanos": 450000000}
+          ]
+        }
+      }
+    }
+  ]
+}
