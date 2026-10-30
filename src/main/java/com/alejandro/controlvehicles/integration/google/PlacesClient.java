@@ -35,8 +35,8 @@ public final class PlacesClient {
         body.put("sessionToken", sessionToken);
         body.put("includedRegionCodes", List.of("es", "pt"));
         body.put("languageCode", settings.languageCode());
-        JsonNode response = http.post(settings.placesBaseUrl() + "/v1/places:autocomplete",
-                Map.of("X-Goog-Api-Key", settings.apiKey()), body);
+        JsonNode response = GoogleErrors.call(() -> http.post(settings.placesBaseUrl() + "/v1/places:autocomplete",
+                Map.of("X-Goog-Api-Key", settings.apiKey()), body));
         List<PlaceSuggestion> suggestions = new ArrayList<>();
         for (JsonNode suggestion : response.path("suggestions")) {
             JsonNode prediction = suggestion.path("placePrediction");
@@ -56,8 +56,8 @@ public final class PlacesClient {
         String url = settings.placesBaseUrl() + "/v1/places/" + encode(placeId) + "?languageCode="
                 + encode(settings.languageCode())
                 + (sessionToken == null ? "" : "&sessionToken=" + encode(sessionToken));
-        JsonNode place = http.get(url, Map.of("X-Goog-Api-Key", settings.apiKey(),
-                "X-Goog-FieldMask", "id,displayName,formattedAddress,location,addressComponents"));
+        JsonNode place = GoogleErrors.call(() -> http.get(url, Map.of("X-Goog-Api-Key", settings.apiKey(),
+                "X-Goog-FieldMask", "id,displayName,formattedAddress,location,addressComponents")));
         Country country = null;
         for (JsonNode component : place.path("addressComponents")) {
             for (JsonNode type : component.path("types")) {
