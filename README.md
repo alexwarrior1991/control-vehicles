@@ -8,7 +8,7 @@ the drivers declare, every refuel, what the fuel should have cost and what it re
 
 | Screen | What for |
 |---|---|
-| **Trips** | Register a trip as the driver declares it: vehicle, driver, date, start and end time, origin and destination (Google Places autocomplete), **odometer at the start**, odometer at the end if it was noted, and tolls paid. Google Routes adds the real distance, driving time and estimated tolls; the price of a litre that day around the origin is added too. |
+| **Trips** | Register a trip as the driver declares it: vehicle, driver, date, start and end time, origin and destination (Google Places autocomplete), **odometer at the start**, odometer at the end if it was noted, and tolls paid. Google Routes adds the real distance, driving time and estimated tolls; the price of a litre that day around the origin is added too. | The list keeps the essentials (when, vehicle, driver, route, km, time, price, issues); the trip selected shows every figure and each divergence in full in the panel below it.
 | **Refuels** | Litres, amount, odometer and whether the tank was filled, typed or **imported from the Galp Frota statement**. Below, the consumption measured between two full tanks against the vehicle's nominal one. |
 | **Divergences** | Everything that does not add up, the worst first (see below). |
 | **Monthly report** | Per vehicle and per driver: odometer km vs Google km, real spend (refuels) vs expected cost (Google km × nominal consumption × price) and the cost by odometer km, tolls declared vs estimated. Exported to CSV for Excel. |
@@ -86,6 +86,8 @@ country average of the day (all brands and Galp), which builds the history Portu
 prices and rules). The other person installs the application and uses *Import database*: the file is checked
 (it must be a Control Vehicles database, not from a newer version), their current data is backed up next to it
 and replaced. The **Google API key is not in the database**: it lives in `settings.properties` on each computer.
+
+Every list has a **+** at the right of its header to hide or show columns.
 
 ## Running it
 

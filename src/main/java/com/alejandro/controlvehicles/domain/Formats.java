@@ -16,6 +16,7 @@ public final class Formats {
 
     public static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     public static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
+    public static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private Formats() {
@@ -51,6 +52,16 @@ public final class Formats {
 
     public static String dateTime(LocalDateTime dateTime) {
         return dateTime == null ? "" : DATE_TIME.format(dateTime);
+    }
+
+    /** "1:05", "0:45": for narrow columns. */
+    public static String shortDuration(Duration duration) {
+        if (duration == null) {
+            return "";
+        }
+        long minutes = duration.toMinutes();
+        return String.format(Locale.ENGLISH, "%s%d:%02d", minutes < 0 ? "-" : "", Math.abs(minutes) / 60,
+                Math.abs(minutes) % 60);
     }
 
     /** "1 h 05 min", "45 min". */

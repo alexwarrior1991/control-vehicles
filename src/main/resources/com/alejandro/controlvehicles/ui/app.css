@@ -99,3 +99,33 @@
 .table-row-cell .text {
     -fx-fill: -fx-text-background-color;
 }
+
+.subsection-title {
+    -fx-font-weight: bold;
+    -fx-padding: 4 0 0 0;
+}
+
+.details {
+    -fx-background-color: white;
+}
+
+.detail-value {
+    -fx-font-weight: bold;
+}
+
+.divergence-line {
+    -fx-padding: 4 8 4 8;
+    -fx-background-radius: 4;
+}
+
+.divergence-line.row-high {
+    -fx-background-color: #fde2e1;
+}
+
+.divergence-line.row-warning {
+    -fx-background-color: #fff3cd;
+}
+
+.divergence-line.row-info {
+    -fx-background-color: #e7f0fd;
+}

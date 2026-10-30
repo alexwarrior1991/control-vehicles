@@ -17,13 +17,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 
 import java.math.BigDecimal;
@@ -52,6 +53,7 @@ public final class TripsView implements AppView {
     private final TableView<TripRow> table = Tables.table("No trips in this month.");
     private final Label summary = new Label();
     private final Button completePending = new Button();
+    private final TripDetails details = new TripDetails();
     private List<TripRow> all = List.of();
 
     public TripsView(AppContext context, HostServices hostServices) {
@@ -72,7 +74,7 @@ public final class TripsView implements AppView {
         Button delete = new Button("Delete");
         delete.setOnAction(event -> selected(this::delete));
         completePending.setOnAction(event -> completePending());
-        HBox actions = new HBox(8, add, edit, recalculate, maps, delete, completePending);
+        FlowPane actions = new FlowPane(8, 8, add, edit, recalculate, maps, delete, completePending);
 
         vehicleFilter.setPrefWidth(220);
         driverFilter.setPrefWidth(180);
@@ -80,15 +82,19 @@ public final class TripsView implements AppView {
         vehicleFilter.valueProperty().addListener((o, b, n) -> applyFilter());
         driverFilter.valueProperty().addListener((o, b, n) -> applyFilter());
         onlyDivergent.selectedProperty().addListener((o, b, n) -> applyFilter());
-        HBox filters = new HBox(10, month, vehicleFilter, driverFilter, onlyDivergent);
+        FlowPane filters = new FlowPane(10, 8, month, vehicleFilter, driverFilter, onlyDivergent);
         filters.setAlignment(Pos.CENTER_LEFT);
 
         VBox top = new VBox(10, filters, actions);
         top.setPadding(new Insets(0, 0, 10, 0));
         summary.setPadding(new Insets(8, 0, 0, 0));
+        VBox list = new VBox(table, summary);
+        VBox.setVgrow(table, javafx.scene.layout.Priority.ALWAYS);
+        SplitPane split = new SplitPane(list, details);
+        split.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        split.setDividerPositions(0.6);
         root.setTop(top);
-        root.setCenter(table);
-        root.setBottom(summary);
+        root.setCenter(split);
     }
 
     @Override
@@ -132,7 +138,12 @@ public final class TripsView implements AppView {
                 .filter(row -> driver == null || row.trip().driverId() == driver.id())
                 .filter(row -> !onlyDivergent.isSelected() || !row.divergences().isEmpty())
                 .toList();
+        TripRow selected = table.getSelectionModel().getSelectedItem();
         table.getItems().setAll(rows);
+        if (selected != null) {
+            rows.stream().filter(r -> r.trip().id().equals(selected.trip().id())).findFirst()
+                    .ifPresentOrElse(r -> table.getSelectionModel().select(r), () -> details.show(null));
+        }
         int odometer = rows.stream().map(TripRow::odometerKm).filter(Objects::nonNull).mapToInt(Integer::intValue)
                 .sum();
         BigDecimal google = rows.stream().map(TripRow::googleKm).filter(Objects::nonNull)
@@ -148,46 +159,28 @@ public final class TripsView implements AppView {
     }
 
     private void buildTable() {
-        Tables.wide(table);
-        TableColumn<TripRow, java.time.LocalDateTime> date = Tables.number("Date", row -> row.trip().startAt(),
-                Formats::dateTime);
-        date.setPrefWidth(150);
-        table.getColumns().add(date);
-        table.getColumns().add(Tables.text("End", row -> Formats.time(row.trip().endTime())));
-        table.getColumns().add(Tables.text("Vehicle", row -> row.vehicle() == null ? "" : row.vehicle().plate()));
-        TableColumn<TripRow, String> driverName = Tables.text("Driver",
-                row -> row.driver() == null ? "" : row.driver().name());
-        driverName.setPrefWidth(140);
-        table.getColumns().add(driverName);
-        TableColumn<TripRow, String> origin = Tables.text("Origin", row -> placeName(row.origin()));
-        origin.setPrefWidth(150);
-        table.getColumns().add(origin);
-        TableColumn<TripRow, String> destination = Tables.text("Destination", row -> placeName(row.destination()));
-        destination.setPrefWidth(150);
-        table.getColumns().add(destination);
-        table.getColumns().add(Tables.number("Start km", row -> row.trip().startOdometerKm(), Formats::km));
-        table.getColumns().add(Tables.number("End km", row -> row.trip().endOdometerKm(), Formats::km));
-        TableColumn<TripRow, String> odometer = Tables.text("Odometer km",
-                row -> row.pending() ? "pending" : Formats.km(row.odometerKm()));
+        table.getColumns().add(Tables.width(Tables.number("When", row -> row.trip().startAt(),
+                at -> Formats.DAY_MONTH.format(at) + " " + Formats.time(at.toLocalTime())), 115));
+        table.getColumns().add(Tables.width(Tables.text("Vehicle",
+                row -> row.vehicle() == null ? "" : row.vehicle().plate()), 95));
+        table.getColumns().add(Tables.width(Tables.text("Driver",
+                row -> row.driver() == null ? "" : row.driver().name()), 120));
+        table.getColumns().add(Tables.width(Tables.text("Route",
+                row -> placeName(row.origin()) + " → " + placeName(row.destination())), 230));
+        TableColumn<TripRow, String> odometer = Tables.width(Tables.text("Odometer",
+                row -> row.pending() ? "pending" : Formats.km(row.odometerKm())), 85);
         odometer.setStyle("-fx-alignment: CENTER-RIGHT;");
-        table.getColumns().add(odometer);
-        table.getColumns().add(Tables.number("Unrecorded km", TripRow::unrecordedKm, Formats::km));
-        table.getColumns().add(Tables.number("Google km", TripRow::googleKm, Formats::km));
-        table.getColumns().add(Tables.number("Gap km", TripRow::gapKm, Formats::km));
-        table.getColumns().add(Tables.text("Declared time", row -> Formats.duration(row.trip().declaredDuration())));
-        table.getColumns().add(Tables.text("Google time",
-                row -> row.trip().route() == null ? "" : Formats.duration(row.trip().route().duration())));
-        table.getColumns().add(Tables.number("Tolls €", row -> row.trip().tollsPaid(), Formats::money));
-        table.getColumns().add(Tables.text("Google tolls €", row -> row.trip().route() == null ? ""
-                : switch (row.trip().route().tollStatus()) {
-                    case NONE -> "none";
-                    case PRICED -> Formats.money(row.trip().route().tollEstimate());
-                    case UNPRICED -> "unknown";
-                }));
-        table.getColumns().add(Tables.text("€/l", row -> row.trip().price() == null ? "—"
-                : Formats.pricePerLitre(row.trip().price().pricePerLitre())));
+        table.getColumns().add(Tables.group("Km", odometer,
+                Tables.width(Tables.number("Google", TripRow::googleKm, Formats::km), 75),
+                Tables.width(Tables.number("Gap", TripRow::gapKm, Formats::km), 65)));
+        table.getColumns().add(Tables.group("Time",
+                Tables.width(Tables.text("Declared", row -> Formats.shortDuration(row.trip().declaredDuration())), 80),
+                Tables.width(Tables.text("Google", row -> row.trip().route() == null ? ""
+                        : Formats.shortDuration(row.trip().route().duration())), 70)));
+        table.getColumns().add(Tables.width(Tables.text("€/l", row -> row.trip().price() == null ? "—"
+                : Formats.pricePerLitre(row.trip().price().pricePerLitre())), 65));
 
-        TableColumn<TripRow, TripRow> flags = new TableColumn<>("Divergences");
+        TableColumn<TripRow, TripRow> flags = new TableColumn<>("Issues");
         flags.setCellValueFactory(cell -> new javafx.beans.property.ReadOnlyObjectWrapper<>(cell.getValue()));
         flags.setSortable(false);
         flags.setCellFactory(column -> new TableCell<>() {
@@ -195,11 +188,11 @@ public final class TripsView implements AppView {
             protected void updateItem(TripRow row, boolean empty) {
                 super.updateItem(row, empty);
                 if (empty || row == null || row.divergences().isEmpty()) {
-                    setText(empty || row == null ? null : row.trip().route() == null ? "no Google route" : "");
+                    setText(empty || row == null ? null : row.trip().route() == null ? "no route" : "");
                     setTooltip(null);
                     return;
                 }
-                setText(row.divergences().stream().map(d -> d.kind().label()).distinct()
+                setText(row.divergences().stream().map(d -> d.kind().shortLabel()).distinct()
                         .collect(Collectors.joining(", ")));
                 Tooltip tooltip = new Tooltip(row.divergences().stream().map(Divergence::detail)
                         .collect(Collectors.joining("\n")));
@@ -207,8 +200,9 @@ public final class TripsView implements AppView {
                 setTooltip(tooltip);
             }
         });
-        flags.setPrefWidth(320);
+        flags.setPrefWidth(150);
         table.getColumns().add(flags);
+        table.getSelectionModel().selectedItemProperty().addListener((o, before, now) -> details.show(now));
 
         table.setRowFactory(t -> {
             TableRow<TripRow> row = new TableRow<>() {
