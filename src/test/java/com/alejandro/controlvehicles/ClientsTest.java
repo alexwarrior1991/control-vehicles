@@ -124,6 +124,57 @@ class ClientsTest {
     }
 
     @Test
+    void aDisabledApiSaysWhichOneAndWhereToEnableIt() {
+        server.on("/v1/places:autocomplete", r -> refusal(403, "SERVICE_DISABLED", "places.googleapis.com"));
+        ExternalApiException e = assertThrows(ExternalApiException.class,
+                () -> new PlacesClient(() -> google, http).autocomplete("madr", "s"));
+        assertEquals("SERVICE_DISABLED", e.reason());
+        assertTrue(e.getMessage().startsWith("Places API (New) is not enabled in the Google Cloud project"),
+                e.getMessage());
+    }
+
+    @Test
+    void anApiMissingFromTheKeyRestrictionsIsNamed() {
+        server.on("/directions/v2:computeRoutes", r -> refusal(403, "API_KEY_SERVICE_BLOCKED",
+                "routes.googleapis.com"));
+        ExternalApiException e = assertThrows(ExternalApiException.class,
+                () -> routes().route(place("a"), place("b"), FuelType.DIESEL));
+        assertTrue(e.getMessage().startsWith("The key's API restrictions do not include Routes API"),
+                e.getMessage());
+    }
+
+    @Test
+    void billingAndApplicationRestrictionsAreExplained() {
+        server.on("/v1/places/", r -> refusal(403, "BILLING_DISABLED", "places.googleapis.com"));
+        assertTrue(assertThrows(ExternalApiException.class, () -> new PlacesClient(() -> google, http)
+                .details("x", "s")).getMessage().startsWith("Billing is not enabled"));
+        server.on("/v1/places:autocomplete", r -> refusal(403, "API_KEY_HTTP_REFERRER_BLOCKED",
+                "places.googleapis.com"));
+        assertTrue(assertThrows(ExternalApiException.class, () -> new PlacesClient(() -> google, http)
+                .autocomplete("madr", "s")).getMessage().contains("set Application restrictions to None"));
+    }
+
+    @Test
+    void anInvalidKeyIsAskedOnceAndSaidSo() {
+        server.on("/directions/v2:computeRoutes", r -> refusal(400, "API_KEY_INVALID", "routes.googleapis.com"));
+        ExternalApiException e = assertThrows(ExternalApiException.class,
+                () -> routes().route(place("a"), place("b"), FuelType.DIESEL));
+        assertEquals("The key is not valid: copy it again from Credentials → Show key.", e.getMessage());
+        assertEquals(1, server.requests().size(), "not retried without tolls");
+    }
+
+    @Test
+    void aRefusalWithoutReasonGetsTheChecklist() {
+        server.on("/v1/places:autocomplete", r -> new FakeHttpServer.Response(403,
+                "{\"error\":{\"code\":403,\"message\":\"The caller does not have permission\","
+                        + "\"status\":\"PERMISSION_DENIED\"}}"));
+        ExternalApiException e = assertThrows(ExternalApiException.class,
+                () -> new PlacesClient(() -> google, http).autocomplete("madr", "s"));
+        assertTrue(e.getMessage().contains("The caller does not have permission"), e.getMessage());
+        assertTrue(e.getMessage().contains("Places API (New) and Routes API are enabled"), e.getMessage());
+    }
+
+    @Test
     void mitecoPricesAreParsedWithDecimalCommasAndOnlyWhenThereIsOne() {
         server.onFixture("/EstacionesTerrestres", "miteco-stations.json");
         SpainMitecoProvider provider = new SpainMitecoProvider(server.baseUrl(), http, CLOCK);
@@ -167,6 +218,15 @@ class ClientsTest {
         ExternalApiException e = assertThrows(ExternalApiException.class, () -> new PortugalDgegProvider(
                 "http://127.0.0.1:1", http).stationPrices(LocalDate.now(), FuelType.DIESEL));
         assertEquals(0, e.status());
+    }
+
+    /** A refusal as Google writes it, with its {@code google.rpc.ErrorInfo}. */
+    private static FakeHttpServer.Response refusal(int status, String reason, String service) {
+        return new FakeHttpServer.Response(status, """
+                {"error": {"code": %d, "message": "Request refused", "status": "PERMISSION_DENIED",
+                  "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "%s",
+                    "domain": "googleapis.com", "metadata": {"service": "%s", "consumer": "projects/123"}}]}}
+                """.formatted(status, reason, service));
     }
 
     private RoutesClient routes() {

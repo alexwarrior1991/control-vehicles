@@ -65,7 +65,10 @@ public final class HttpJson {
         }
         JsonNode body = parse(response.body());
         if (response.statusCode() / 100 != 2) {
-            throw new ExternalApiException(errorMessage(request, response.statusCode(), body), response.statusCode());
+            JsonNode errorInfo = errorInfo(body);
+            throw new ExternalApiException(errorMessage(request, response.statusCode(), body), response.statusCode(),
+                    errorInfo == null ? null : errorInfo.path("reason").asText(null),
+                    errorInfo == null ? null : errorInfo.path("metadata").path("service").asText(null));
         }
         if (body == null) {
             throw new ExternalApiException("Not a JSON answer from " + request.uri().getHost(), response.statusCode());
@@ -82,6 +85,19 @@ public final class HttpJson {
         } catch (IOException e) {
             return null;
         }
+    }
+
+    /** The first {@code google.rpc.ErrorInfo} of a Google error, which says why it was refused. */
+    private static JsonNode errorInfo(JsonNode body) {
+        if (body == null) {
+            return null;
+        }
+        for (JsonNode detail : body.path("error").path("details")) {
+            if (detail.path("@type").asText("").endsWith("google.rpc.ErrorInfo")) {
+                return detail;
+            }
+        }
+        return null;
     }
 
     /** Google answers {"error": {"message": ...}}; anything else gets the status. */

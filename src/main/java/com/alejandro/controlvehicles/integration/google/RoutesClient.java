@@ -39,13 +39,14 @@ public final class RoutesClient {
             throw new ExternalApiException("No Google API key: set it in Settings", 0);
         }
         try {
-            return compute(settings, origin, destination, fuelType, true);
+            return GoogleErrors.call(() -> compute(settings, origin, destination, fuelType, true));
         } catch (ExternalApiException e) {
-            if (e.status() != 400) {
+            if (e.status() != 400 || e.reason() != null) {
                 throw e;
             }
-            // Si Google no admite el cálculo de peajes para esa petición, la ruta sigue valiendo sin ellos.
-            return compute(settings, origin, destination, fuelType, false);
+            // Si Google no admite el cálculo de peajes para esa petición, la ruta sigue valiendo sin ellos; un 400
+            // con motivo (una clave no válida) no se repite.
+            return GoogleErrors.call(() -> compute(settings, origin, destination, fuelType, false));
         }
     }
 
