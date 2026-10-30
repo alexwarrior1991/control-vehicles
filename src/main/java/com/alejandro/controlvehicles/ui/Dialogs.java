@@ -51,7 +51,7 @@ public final class Dialogs {
         alert.setTitle("Control Vehicles");
         alert.setHeaderText(header);
         alert.getDialogPane().setContent(wrapped(message));
-        AppFonts.style(alert.getDialogPane());
+        AppLook.style(alert.getDialogPane());
         Optional<ButtonType> answer = alert.showAndWait();
         return answer.isPresent() && answer.get() == ButtonType.OK;
     }
@@ -61,7 +61,7 @@ public final class Dialogs {
         alert.setTitle("Control Vehicles");
         alert.setHeaderText(header);
         alert.getDialogPane().setContent(wrapped(message));
-        AppFonts.style(alert.getDialogPane());
+        AppLook.style(alert.getDialogPane());
         alert.showAndWait();
     }
 

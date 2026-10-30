@@ -44,9 +44,11 @@ does not extend `Application`.
   (replace the file after a backup) work while the application runs.
 - Network calls never run on the JavaFX thread (`ui.Background`, `ui.EditorDialog`). A failing Google or price
   service never prevents saving a trip: it is saved with warnings and can be recalculated.
-- The font is JetBrains Mono, bundled in `src/main/resources/.../ui/fonts` (OFL) and registered by
-  `AppFonts.load()` before the first scene. Every scene and every dialog gets `app.css` through
-  `AppFonts.style(...)`: a dialog has its own scene and would otherwise fall back to the default font.
+- The font is JetBrains Mono, bundled in `src/main/resources/.../ui/fonts` (OFL), and the icon is in
+  `.../ui/icons` (PNG from 16 to 256 px and `app.ico` for the Windows `.exe`, drawn by `scripts/draw_icon.py`);
+  `AppLook.load()` registers both before the first scene. Every scene and every dialog goes through
+  `AppLook.style(...)`, which adds `app.css` and the icon to its window: a dialog has its own scene and window and
+  would otherwise fall back to the default font and Java's icon.
 - External endpoints go through `AppContext.Endpoints` so tests point them at `support.FakeHttpServer`.
 
 ## Tests

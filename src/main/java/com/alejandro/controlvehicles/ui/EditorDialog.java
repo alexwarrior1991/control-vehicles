@@ -36,7 +36,7 @@ public final class EditorDialog {
         error.setVisible(false);
         VBox body = new VBox(8, content, error);
         dialog.getDialogPane().setContent(body);
-        AppFonts.style(dialog.getDialogPane());
+        AppLook.style(dialog.getDialogPane());
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         Button ok = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
         ok.setText("Save");
