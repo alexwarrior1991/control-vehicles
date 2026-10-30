@@ -25,6 +25,7 @@ import java.util.Optional;
 import static com.alejandro.controlvehicles.support.Fixtures.refuel;
 import static com.alejandro.controlvehicles.support.Fixtures.trip;
 import static com.alejandro.controlvehicles.support.Fixtures.vehicle;
+import static com.alejandro.controlvehicles.support.Fixtures.withEnd;
 import static com.alejandro.controlvehicles.support.Fixtures.withGoogle;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -79,6 +80,61 @@ class DomainTest {
     }
 
     @Test
+    void withAnEndOdometerTheTripHasItsOwnDistanceAndTheRestIsUnrecorded() {
+        List<OdometerLedger.Entry> ledger = OdometerLedger.of(List.of(
+                withEnd(trip(1, 1, 1, "2026-10-01", "08:00", "09:00", 1000), 1072),
+                trip(2, 1, 1, "2026-10-02", "08:00", "09:00", 1150),
+                withEnd(trip(3, 1, 1, "2026-10-03", "08:00", "09:00", 1300), 1340)));
+
+        assertEquals(72, ledger.get(0).odometerKm());
+        assertEquals(78, ledger.get(0).unrecordedKm());
+        assertEquals(150, ledger.get(1).odometerKm(), "no end: up to the next start, as before");
+        assertNull(ledger.get(1).unrecordedKm());
+        assertEquals(40, ledger.get(2).odometerKm());
+        assertFalse(ledger.get(2).pending(), "the last trip knows its distance when its end was noted");
+        assertNull(ledger.get(2).unrecordedKm());
+    }
+
+    @Test
+    void unrecordedUseIsADivergenceAboveTheReadingTolerance() {
+        List<OdometerLedger.Entry> ledger = OdometerLedger.of(List.of(
+                withEnd(trip(1, 1, 7, "2026-10-01", "08:00", "09:00", 1000), 1072),
+                withEnd(trip(2, 1, 1, "2026-10-02", "08:00", "09:00", 1074), 1100),
+                withEnd(trip(3, 1, 1, "2026-10-03", "08:00", "09:00", 1110), 1200),
+                trip(4, 1, 1, "2026-10-04", "08:00", "09:00", 1260)));
+
+        assertTrue(DivergenceRules.unrecordedUse(ledger.get(0), RULES).isEmpty(), "2 km is a reading error");
+        Divergence warning = DivergenceRules.unrecordedUse(ledger.get(1), RULES).orElseThrow();
+        assertEquals(Severity.WARNING, warning.severity());
+        assertEquals("10 km unrecorded: ended at 1,100 km, the next trip (03/10/2026 08:00) started at 1,110 km",
+                warning.detail());
+        assertEquals(2L, warning.tripId(), "on the trip after which it happened");
+        assertEquals(Severity.HIGH, DivergenceRules.unrecordedUse(ledger.get(2), RULES).orElseThrow().severity());
+        assertEquals(7L, DivergenceRules.unrecordedUse(OdometerLedger.of(List.of(
+                withEnd(trip(1, 1, 7, "2026-10-01", "08:00", "09:00", 1000), 1072),
+                trip(2, 1, 1, "2026-10-02", "08:00", "09:00", 1090))).getFirst(), RULES).orElseThrow().driverId(),
+                "the driver who had the vehicle last");
+    }
+
+    @Test
+    void aStartBelowThePreviousEndIsADivergenceAndHasNoGap() {
+        List<OdometerLedger.Entry> ledger = OdometerLedger.of(List.of(
+                withEnd(trip(1, 1, 1, "2026-10-01", "08:00", "09:00", 1000), 1080),
+                trip(2, 1, 1, "2026-10-02", "08:00", "09:00", 1050)));
+
+        assertNull(ledger.getFirst().unrecordedKm());
+        assertEquals(80, ledger.getFirst().odometerKm());
+        assertEquals("Starts at 1,050 km, previous trip (01/10/2026 08:00) ended at 1,080 km",
+                DivergenceRules.odometerSequence(ledger.get(1)).orElseThrow().detail());
+    }
+
+    @Test
+    void anEndOdometerCannotBeBelowTheStart() {
+        assertThrows(IllegalArgumentException.class,
+                () -> withEnd(trip(1, 1, 1, "2026-10-01", "08:00", "09:00", 1000), 999));
+    }
+
+    @Test
     void aTripEndingBeforeItsStartTimeEndsTheNextDay() {
         Trip night = trip(1, 1, 1, "2026-10-01", "23:30", "01:15", 1000);
         assertEquals(Duration.ofMinutes(105), night.declaredDuration());
@@ -116,7 +172,7 @@ class DomainTest {
     @Test
     void theTollRuleComparesWithGoogleAndToleratesCents() {
         Trip base = trip(1, 1, 1, "2026-10-01", "08:00", "09:00", 1000);
-        Trip declared = new Trip(1L, 1, 1, base.date(), base.startTime(), base.endTime(), 1L, 2L, 1000,
+        Trip declared = new Trip(1L, 1, 1, base.date(), base.startTime(), base.endTime(), 1L, 2L, 1000, null,
                 new BigDecimal("12.00"), null, null, null);
         Trip priced = declared.withRoute(new RouteEstimate(70_000, 3600, TollStatus.PRICED, new BigDecimal("7.45"),
                 Instant.EPOCH));

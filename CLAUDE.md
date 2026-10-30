@@ -22,9 +22,11 @@ does not extend `Application`.
 
 ## Rules that must not be broken
 
-- **Only the start odometer is stored.** A trip's distance is the next trip's start minus its own
-  (`OdometerLedger`), always derived, never stored. Everything derived (distances, consumption, divergences)
-  comes from `FleetAnalysis`, computed over all trips and refuels each time.
+- **The start odometer is always noted, the end one only sometimes** (`trip.end_odometer_km`, optional, `V2`).
+  Without an end, a trip's distance is the next trip's start minus its own; with it, end minus start, and the
+  kilometres up to the next start are unrecorded use (`OdometerLedger`). Distances are always derived, never
+  stored. Everything derived (distances, unrecorded km, consumption, divergences) comes from `FleetAnalysis`,
+  computed over all trips and refuels each time.
 - `domain` has no JDBC, JavaFX or HTTP; its rules are pure and tested in `DomainTest`.
 - Money and litres are `BigDecimal`, stored as TEXT; dates as ISO TEXT. Google distances are kept in metres and
   turned into exact km (`RouteEstimate.distanceKm`); only the screens round.

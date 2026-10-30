@@ -12,9 +12,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-/** A trip with everything a list shows: names, the odometer distance and its divergences. */
+/**
+ * A trip with everything a list shows: names, its own odometer distance, the kilometres nobody registered after
+ * it (only known when its end odometer was noted) and its divergences.
+ */
 public record TripRow(Trip trip, Vehicle vehicle, Driver driver, Place origin, Place destination, Integer odometerKm,
-                      boolean pending, List<Divergence> divergences) {
+                      Integer unrecordedKm, boolean pending, List<Divergence> divergences) {
 
     public BigDecimal googleKm() {
         return trip.route() == null ? null : trip.route().distanceKm();

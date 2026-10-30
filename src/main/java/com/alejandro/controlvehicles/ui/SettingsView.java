@@ -40,6 +40,7 @@ public final class SettingsView implements AppView {
     private final TextField durationMinMinutes = new TextField();
     private final TextField consumptionPercent = new TextField();
     private final TextField tollTolerance = new TextField();
+    private final TextField unrecordedMinKm = new TextField();
     private final TextField radius = new TextField();
     private final TextField brand = new TextField();
     private final ComboBox<Country> defaultCountry = new ComboBox<>();
@@ -77,6 +78,7 @@ public final class SettingsView implements AppView {
                 .add("… and above (min)", durationMinMinutes)
                 .add("Consumption gap above (%)", consumptionPercent)
                 .add("Toll tolerance (€)", tollTolerance)
+                .add("Unrecorded use above (km)", unrecordedMinKm)
                 .add("Price search radius (km)", radius)
                 .add("Preferred brand", brand)
                 .add("Default country", defaultCountry)
@@ -124,6 +126,7 @@ public final class SettingsView implements AppView {
             durationMinMinutes.setText(String.valueOf(t.durationMinMinutes()));
             consumptionPercent.setText(String.valueOf(t.consumptionPercent()));
             tollTolerance.setText(t.tollToleranceEur().toPlainString());
+            unrecordedMinKm.setText(String.valueOf(t.unrecordedMinKm()));
             radius.setText(String.valueOf(settings.priceRadiusKm()));
             brand.setText(settings.preferredBrand() == null ? "" : settings.preferredBrand());
             defaultCountry.setValue(settings.defaultCountry());
@@ -151,7 +154,8 @@ public final class SettingsView implements AppView {
                     Inputs.integer(durationPercent.getText(), "Duration %", true),
                     Inputs.integer(durationMinMinutes.getText(), "Duration minutes", true),
                     Inputs.integer(consumptionPercent.getText(), "Consumption %", true),
-                    Inputs.decimal(tollTolerance.getText(), "Toll tolerance", true)),
+                    Inputs.decimal(tollTolerance.getText(), "Toll tolerance", true),
+                    Inputs.integer(unrecordedMinKm.getText(), "Unrecorded use km", true)),
                     Inputs.integer(radius.getText(), "Radius", true), brand.getText().trim()
                     .toUpperCase(java.util.Locale.ROOT), defaultCountry.getValue());
         } catch (RuntimeException e) {

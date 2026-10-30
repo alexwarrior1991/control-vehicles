@@ -67,6 +67,40 @@ class PersistenceTest {
     }
 
     @Test
+    void aDatabaseOfTheFirstVersionGetsTheEndOdometerAndKeepsItsTrips() throws Exception {
+        Path old = dir.resolve("v1.db");
+        String v1;
+        try (var in = MigrationRunner.class.getResourceAsStream("/db/migration/V1__init.sql")) {
+            v1 = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        try (var c = java.sql.DriverManager.getConnection("jdbc:sqlite:" + old);
+             var st = c.createStatement()) {
+            for (String sql : v1.replaceAll("(?m)^--.*$", "").split(";")) {
+                if (!sql.isBlank()) {
+                    st.execute(sql);
+                }
+            }
+            st.execute("CREATE TABLE schema_version (version INTEGER PRIMARY KEY, description TEXT NOT NULL,"
+                    + " applied_at TEXT NOT NULL)");
+            st.execute("INSERT INTO schema_version VALUES (1, 'V1__init.sql', '2026-10-01T00:00:00Z')");
+            st.execute("INSERT INTO driver (name, created_at, updated_at) VALUES ('Ana', 'x', 'x')");
+            st.execute("INSERT INTO vehicle (plate, fuel_type, nominal_consumption_l100, created_at, updated_at)"
+                    + " VALUES ('1', 'DIESEL', '6', 'x', 'x')");
+            st.execute("INSERT INTO trip (vehicle_id, driver_id, trip_date, start_time, end_time, start_odometer_km,"
+                    + " created_at, updated_at) VALUES (1, 1, '2026-10-01', '08:00', '09:00', 1000, 'x', 'x')");
+        }
+
+        Database migrated = new Database(old).initialize();
+
+        Trip trip = new TripRepository(migrated).findAll().getFirst();
+        assertNull(trip.endOdometerKm());
+        assertEquals(1000, trip.startOdometerKm());
+        new TripRepository(migrated).save(new Trip(trip.id(), trip.vehicleId(), trip.driverId(), trip.date(),
+                trip.startTime(), trip.endTime(), null, null, 1000, 1060, trip.tollsPaid(), null, null, null));
+        assertEquals(1060, new TripRepository(migrated).findAll().getFirst().endOdometerKm());
+    }
+
+    @Test
     void aTripKeepsEverythingItWasSavedWith() {
         Driver driver = new DriverRepository(database).save(new Driver(null, "Ana Pérez", "B-123", null, null, true,
                 null));
@@ -77,7 +111,7 @@ class PersistenceTest {
         Place destination = places.save(new Place(null, "p2", "Toledo", "Toledo, Spain", 39.8, -4.0, Country.ES));
         TripRepository trips = new TripRepository(database);
         Trip saved = trips.save(new Trip(null, vehicle.id(), driver.id(), LocalDate.of(2026, 10, 1),
-                LocalTime.of(8, 0), LocalTime.of(9, 15), origin.id(), destination.id(), 120_500,
+                LocalTime.of(8, 0), LocalTime.of(9, 15), origin.id(), destination.id(), 120_500, 120_575,
                 new BigDecimal("7.45"), "client visit",
                 new RouteEstimate(72_450, 3960, TollStatus.PRICED, new BigDecimal("7.45"),
                         Instant.parse("2026-10-01T10:00:00Z")),

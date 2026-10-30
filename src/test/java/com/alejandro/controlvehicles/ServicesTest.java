@@ -39,6 +39,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+import static com.alejandro.controlvehicles.support.Fixtures.withEnd;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -136,7 +137,7 @@ class ServicesTest {
         int calls = server.requests("/directions").size();
         Trip edited = new Trip(saved.id(), saved.vehicleId(), saved.driverId(), saved.date(), saved.startTime(),
                 LocalTime.of(9, 30), saved.originPlaceId(), saved.destinationPlaceId(), saved.startOdometerKm(),
-                new BigDecimal("7.45"), "edited", saved.route(), saved.price());
+                saved.endOdometerKm(), new BigDecimal("7.45"), "edited", saved.route(), saved.price());
         app.trips.save(edited, null);
         assertEquals(calls, server.requests("/directions").size());
     }
@@ -182,6 +183,34 @@ class ServicesTest {
     }
 
     @Test
+    void anEndOdometerSeparatesTheTripFromTheUseNobodyRegistered() {
+        Trip first = app.trips.save(withEnd(trip(LocalDate.of(2026, 10, 1), "08:00", "09:10", madrid, toledo,
+                100_000), 100_074), PriceQuote.manual(new BigDecimal("1.500"))).saved();
+        app.trips.save(trip(LocalDate.of(2026, 10, 2), "08:00", "09:10", toledo, madrid, 100_150),
+                PriceQuote.manual(new BigDecimal("1.500")));
+
+        TripRow row = app.trips.rows().stream().filter(r -> r.trip().id().equals(first.id())).findFirst()
+                .orElseThrow();
+        assertEquals(74, row.odometerKm());
+        assertEquals(76, row.unrecordedKm());
+        assertEquals(List.of(DivergenceKind.UNRECORDED_USE),
+                row.divergences().stream().map(Divergence::kind).filter(k -> k != DivergenceKind.TOLL_MISMATCH)
+                        .toList(), "the trip itself agrees with Google: only the gap is a divergence");
+
+        MonthlyReport.Line line = app.reports.monthly(YearMonth.of(2026, 10)).vehicles().getFirst();
+        assertEquals(74, line.odometerKm());
+        assertEquals(76, line.unrecordedKm());
+        assertEquals(1, line.pendingTrips());
+        assertEquals(76, app.reports.monthly(YearMonth.of(2026, 10)).drivers().getFirst().unrecordedKm());
+    }
+
+    @Test
+    void anEndOdometerBelowTheStartIsRefused() {
+        assertThrows(IllegalArgumentException.class, () -> withEnd(trip(TODAY, "08:00", "09:10", madrid, toledo,
+                100_100), 100_050));
+    }
+
+    @Test
     void theSuggestedOdometerIsTheHighestReadingBeforeTheTrip() {
         app.trips.save(trip(TODAY.minusDays(2), "08:00", "09:10", madrid, toledo, 100_000), null);
         app.refuels.save(refuel(LocalDateTime.of(2026, 10, 28, 12, 0), 100_090, "40", "58.80", true));
@@ -189,6 +218,9 @@ class ServicesTest {
         assertEquals(100_000, app.trips.suggestedStartOdometer(vehicle.id(), TODAY.minusDays(2).atTime(10, 0)));
         assertEquals(100_000, app.trips.suggestedStartOdometer(vehicle.id(), TODAY.minusDays(10).atTime(8, 0)),
                 "nothing before: the initial odometer");
+        app.trips.save(withEnd(trip(TODAY, "08:00", "09:10", madrid, toledo, 100_100), 100_172), null);
+        assertEquals(100_172, app.trips.suggestedStartOdometer(vehicle.id(), TODAY.atTime(12, 0)),
+                "a noted end is the latest reading");
     }
 
     @Test
@@ -236,7 +268,7 @@ class ServicesTest {
 
         String csv = Files.readString(file, StandardCharsets.UTF_8);
         assertTrue(csv.startsWith("﻿Group;Name;Trips"));
-        assertTrue(csv.contains("Vehicle;1234 ABC · Renault Kangoo;1;1;0;0;72,45;0;6;"), csv);
+        assertTrue(csv.contains("Vehicle;1234 ABC · Renault Kangoo;1;1;0;0;0;72,45;0;6;"), csv);
         assertTrue(csv.contains("Total 2026-10"));
     }
 
@@ -301,7 +333,7 @@ class ServicesTest {
 
     private Trip trip(LocalDate date, String start, String end, Place origin, Place destination, int odometer) {
         return new Trip(null, vehicle.id(), driver.id(), date, LocalTime.parse(start), LocalTime.parse(end),
-                origin.id(), destination.id(), odometer, BigDecimal.ZERO, null, null, null);
+                origin.id(), destination.id(), odometer, null, BigDecimal.ZERO, null, null, null);
     }
 
     private Refuel refuel(LocalDateTime at, int odometer, String litres, String amount, boolean full) {

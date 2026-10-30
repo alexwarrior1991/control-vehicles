@@ -20,7 +20,7 @@ import java.util.function.Function;
 public final class CsvExporter {
 
     private static final List<String> REPORT_HEADER = List.of("Group", "Name", "Trips", "Pending trips",
-            "Trips without price", "Odometer km", "Google km", "Gap km", "Nominal l/100", "Measured l/100",
+            "Trips without price", "Odometer km", "Unrecorded km", "Google km", "Gap km", "Nominal l/100", "Measured l/100",
             "Litres refuelled", "Real spend EUR", "Expected cost EUR", "Odometer cost EUR", "Cost gap EUR",
             "Tolls declared EUR", "Tolls estimated EUR", "Divergences");
 
@@ -46,7 +46,8 @@ public final class CsvExporter {
 
     private static List<String> reportRow(String group, MonthlyReport.Line line) {
         return List.of(group, line.name(), String.valueOf(line.trips()), String.valueOf(line.pendingTrips()),
-                String.valueOf(line.tripsWithoutPrice()), String.valueOf(line.odometerKm()), number(line.googleKm()),
+                String.valueOf(line.tripsWithoutPrice()), String.valueOf(line.odometerKm()),
+                String.valueOf(line.unrecordedKm()), number(line.googleKm()),
                 number(line.gapKm()), number(line.nominalL100()), number(line.measuredL100()),
                 number(line.litresRefuelled()), number(line.realSpend()), number(line.expectedCost()),
                 number(line.odometerCost()), number(line.costGap()), number(line.tollsDeclared()),

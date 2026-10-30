@@ -5,6 +5,7 @@ public enum DivergenceKind {
     DISTANCE_MISMATCH("Odometer vs Google distance"),
     DURATION_MISMATCH("Declared vs Google duration"),
     ODOMETER_NOT_INCREASING("Odometer not increasing"),
+    UNRECORDED_USE("Unrecorded use between trips"),
     VEHICLE_OVERLAP("Vehicle in two trips at once"),
     DRIVER_OVERLAP("Driver in two trips at once"),
     TOLL_MISMATCH("Declared vs Google tolls"),

@@ -132,10 +132,13 @@ public final class TripsView implements AppView {
         BigDecimal google = rows.stream().map(TripRow::googleKm).filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long pending = rows.stream().filter(TripRow::pending).count();
+        int unrecorded = rows.stream().map(TripRow::unrecordedKm).filter(Objects::nonNull)
+                .mapToInt(Integer::intValue).sum();
         long divergent = rows.stream().filter(row -> !row.divergences().isEmpty()).count();
         summary.setText(String.format(Locale.ENGLISH,
-                "%d trips · odometer %s km · Google %s km · %d with divergences · %d waiting for the next trip",
-                rows.size(), Formats.km(odometer), Formats.km(google), divergent, pending));
+                "%d trips · odometer %s km · unrecorded %s km · Google %s km · %d with divergences"
+                        + " · %d waiting for the next trip",
+                rows.size(), Formats.km(odometer), Formats.km(unrecorded), Formats.km(google), divergent, pending));
     }
 
     private void buildTable() {
@@ -157,10 +160,12 @@ public final class TripsView implements AppView {
         destination.setPrefWidth(150);
         table.getColumns().add(destination);
         table.getColumns().add(Tables.number("Start km", row -> row.trip().startOdometerKm(), Formats::km));
+        table.getColumns().add(Tables.number("End km", row -> row.trip().endOdometerKm(), Formats::km));
         TableColumn<TripRow, String> odometer = Tables.text("Odometer km",
                 row -> row.pending() ? "pending" : Formats.km(row.odometerKm()));
         odometer.setStyle("-fx-alignment: CENTER-RIGHT;");
         table.getColumns().add(odometer);
+        table.getColumns().add(Tables.number("Unrecorded km", TripRow::unrecordedKm, Formats::km));
         table.getColumns().add(Tables.number("Google km", TripRow::googleKm, Formats::km));
         table.getColumns().add(Tables.number("Gap km", TripRow::gapKm, Formats::km));
         table.getColumns().add(Tables.text("Declared time", row -> Formats.duration(row.trip().declaredDuration())));

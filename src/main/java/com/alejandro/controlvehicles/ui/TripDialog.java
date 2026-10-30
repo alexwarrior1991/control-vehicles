@@ -64,6 +64,13 @@ final class TripDialog {
         PlaceField from = new PlaceField(context.places, "Type the origin…");
         PlaceField to = new PlaceField(context.places, "Type the destination…");
         TextField odometer = new TextField(trip == null ? "" : String.valueOf(trip.startOdometerKm()));
+        TextField endOdometer = new TextField(trip == null || trip.endOdometerKm() == null ? ""
+                : String.valueOf(trip.endOdometerKm()));
+        endOdometer.setPromptText("Optional, if the driver noted it");
+        Label endHint = new Label("With it, use nobody registered before the next trip is told apart from this trip.");
+        endHint.getStyleClass().add("field-hint");
+        endHint.setWrapText(true);
+        endHint.setMaxWidth(420);
         Label odometerHint = new Label();
         odometerHint.getStyleClass().add("field-hint");
         Button useSuggested = new Button("Use");
@@ -130,15 +137,16 @@ final class TripDialog {
         HBox odometerRow = new HBox(8, odometer, useSuggested);
         HBox.setHgrow(odometer, Priority.ALWAYS);
         VBox odometerBox = new VBox(2, odometerRow, odometerHint);
-        Label explanation = new Label("Only the odometer at the start is noted: the trip's distance is known when the"
-                + " vehicle's next trip is registered.");
+        Label explanation = new Label("Without the end odometer, the trip's distance is known when the vehicle's next"
+                + " trip is registered, and includes any use nobody registered in between.");
         explanation.setWrapText(true);
         explanation.getStyleClass().add("field-hint");
         explanation.setMaxWidth(520);
 
         FormGrid form = new FormGrid().add("Vehicle *", vehicle).add("Driver *", driver).add("Date *", date)
                 .add("Start – end *", times).add("Origin *", from).add("Destination *", to)
-                .add("Start odometer (km) *", odometerBox).add("Tolls paid (€)", tolls)
+                .add("Start odometer (km) *", odometerBox).add("End odometer (km)", new VBox(2, endOdometer, endHint))
+                .add("Tolls paid (€)", tolls)
                 .add("Fuel price (€/l)", manualPrice).add("Notes", notes).addWide(explanation);
 
         return EditorDialog.show(owner, trip == null ? "New trip" : "Edit trip", form, () -> {
@@ -159,6 +167,7 @@ final class TripDialog {
                     date.getValue(), Inputs.time(start.getText(), "Start"), Inputs.time(end.getText(), "End"),
                     from.selected().id(), to.selected().id(),
                     Inputs.integer(odometer.getText(), "Start odometer", true),
+                    Inputs.integer(endOdometer.getText(), "End odometer", false),
                     Inputs.decimal(tolls.getText(), "Tolls", false), notes.getText(),
                     trip == null ? null : trip.route(), trip == null ? null : trip.price());
             PriceQuote manual = price == null ? null : PriceQuote.manual(price);

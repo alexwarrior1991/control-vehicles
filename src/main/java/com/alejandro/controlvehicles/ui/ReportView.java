@@ -95,12 +95,13 @@ public final class ReportView implements AppView {
         figure(4, "Odometer / Google km", Formats.km(t.odometerKm()) + " / " + Formats.km(t.googleKm()));
         figure(5, "Tolls declared / estimated", Formats.money(t.tollsDeclared()) + " / "
                 + Formats.money(t.tollsEstimated()) + " €");
-        figure(6, "Divergences", String.valueOf(t.divergences()));
+        figure(6, "Unrecorded km", Formats.km(t.unrecordedKm()));
+        figure(7, "Divergences", String.valueOf(t.divergences()));
         if (t.pendingTrips() > 0 || t.tripsWithoutPrice() > 0) {
             Label note = new Label(t.pendingTrips() + " trips still wait for the next one to know their odometer km; "
                     + t.tripsWithoutPrice() + " have no fuel price.");
             note.getStyleClass().add("field-hint");
-            totals.add(note, 0, 2, 7, 1);
+            totals.add(note, 0, 2, 8, 1);
         }
 
         XYChart.Series<String, Number> real = new XYChart.Series<>();
@@ -136,6 +137,7 @@ public final class ReportView implements AppView {
         table.getColumns().add(name);
         table.getColumns().add(Tables.number("Trips", MonthlyReport.Line::trips, String::valueOf));
         table.getColumns().add(Tables.number("Odometer km", MonthlyReport.Line::odometerKm, Formats::km));
+        table.getColumns().add(Tables.number("Unrecorded km", MonthlyReport.Line::unrecordedKm, Formats::km));
         table.getColumns().add(Tables.number("Google km", MonthlyReport.Line::googleKm, Formats::km));
         table.getColumns().add(Tables.number("Gap km", MonthlyReport.Line::gapKm, Formats::km));
         if (vehicle) {

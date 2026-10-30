@@ -101,6 +101,7 @@ public final class ReportService {
         private int pending;
         private int withoutPrice;
         private int odometerKm;
+        private int unrecordedKm;
         private BigDecimal googleKm = BigDecimal.ZERO;
         private BigDecimal gapKm = BigDecimal.ZERO;
         private BigDecimal litres = BigDecimal.ZERO;
@@ -123,6 +124,9 @@ public final class ReportService {
             trips++;
             tollsDeclared = tollsDeclared.add(trip.tollsPaid());
             Integer odometer = analysed == null ? null : analysed.odometerKm();
+            if (analysed != null && analysed.unrecordedKm() != null) {
+                unrecordedKm += analysed.unrecordedKm();
+            }
             if (odometer == null) {
                 pending++;
             } else {
@@ -168,6 +172,7 @@ public final class ReportService {
             pending += other.pending;
             withoutPrice += other.withoutPrice;
             odometerKm += other.odometerKm;
+            unrecordedKm += other.unrecordedKm;
             googleKm = googleKm.add(other.googleKm);
             gapKm = gapKm.add(other.gapKm);
             litres = litres.add(other.litres);
@@ -189,9 +194,9 @@ public final class ReportService {
         MonthlyReport.Line line() {
             BigDecimal measured = segmentKm == 0 ? null : segmentLitres.multiply(BigDecimal.valueOf(100))
                     .divide(BigDecimal.valueOf(segmentKm), 2, RoundingMode.HALF_UP);
-            return new MonthlyReport.Line(name, trips, pending, withoutPrice, odometerKm, googleKm, gapKm,
-                    nominalL100, measured, litres, spend, expected, odometerCost, tollsDeclared, tollsEstimated,
-                    divergences);
+            return new MonthlyReport.Line(name, trips, pending, withoutPrice, odometerKm, unrecordedKm, googleKm,
+                    gapKm, nominalL100, measured, litres, spend, expected, odometerCost, tollsDeclared,
+                    tollsEstimated, divergences);
         }
     }
 }

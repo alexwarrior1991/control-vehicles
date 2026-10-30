@@ -14,7 +14,12 @@ import java.util.stream.Collectors;
  */
 public final class FleetAnalysis {
 
-    public record TripAnalysis(Trip trip, Integer odometerKm, boolean pending, List<Divergence> divergences) {
+    /**
+     * {@code odometerKm}: the trip's own distance by odometer; {@code unrecordedKm}: what the vehicle did after it
+     * without being registered, only known when its end odometer was noted.
+     */
+    public record TripAnalysis(Trip trip, Integer odometerKm, Integer unrecordedKm, boolean pending,
+                               List<Divergence> divergences) {
     }
 
     private final Map<Long, TripAnalysis> trips;
@@ -45,6 +50,7 @@ public final class FleetAnalysis {
                 Trip trip = entry.trip();
                 entries.put(trip.id(), entry);
                 DivergenceRules.odometerSequence(entry).ifPresent(all::add);
+                DivergenceRules.unrecordedUse(entry, thresholds).ifPresent(all::add);
                 if (entry.odometerKm() != null) {
                     DivergenceRules.distance(trip, entry.odometerKm(), thresholds).ifPresent(all::add);
                 }
@@ -89,7 +95,7 @@ public final class FleetAnalysis {
                 .forEach(d -> byTrip.computeIfAbsent(d.tripId(), id -> new ArrayList<>()).add(d));
         Map<Long, TripAnalysis> analyses = new HashMap<>();
         entries.forEach((id, entry) -> analyses.put(id, new TripAnalysis(entry.trip(), entry.odometerKm(),
-                entry.pending(), List.copyOf(byTrip.getOrDefault(id, List.of())))));
+                entry.unrecordedKm(), entry.pending(), List.copyOf(byTrip.getOrDefault(id, List.of())))));
         return new FleetAnalysis(analyses, segments, List.copyOf(all));
     }
 

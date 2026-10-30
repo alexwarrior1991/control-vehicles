@@ -69,6 +69,9 @@ public final class TripService {
             throw new ValidationException("The odometer cannot be below the vehicle's initial "
                     + vehicle.initialOdometerKm() + " km");
         }
+        if (trip.endOdometerKm() != null && trip.endOdometerKm() < trip.startOdometerKm()) {
+            throw new ValidationException("The end odometer cannot be below the start odometer");
+        }
         Place origin = places.findById(trip.originPlaceId()).orElseThrow();
         Place destination = places.findById(trip.destinationPlaceId()).orElseThrow();
         Trip stored = trip.id() == null ? null : trips.findById(trip.id()).orElse(null);
@@ -128,13 +131,14 @@ public final class TripService {
 
     /**
      * The odometer to propose for a new trip: the highest reading known before that moment, from the trips'
-     * starts or from the refuels (a refuel is a later reading than the trip it happened in).
+     * starts and noted ends or from the refuels (a refuel is a later reading than the trip it happened in).
      */
     public int suggestedStartOdometer(long vehicleId, LocalDateTime startAt) {
         int best = vehicles.findById(vehicleId).map(Vehicle::initialOdometerKm).orElse(0);
         for (Trip trip : trips.findByVehicle(vehicleId)) {
             if (trip.startAt().isBefore(startAt)) {
-                best = Math.max(best, trip.startOdometerKm());
+                best = Math.max(best, trip.endOdometerKm() != null && !trip.endAt().isAfter(startAt)
+                        ? trip.endOdometerKm() : trip.startOdometerKm());
             }
         }
         for (Refuel refuel : refuels.findAll()) {
@@ -157,7 +161,8 @@ public final class TripService {
                     FleetAnalysis.TripAnalysis analysed = fleet.trip(trip.id());
                     return new TripRow(trip, vehiclesById.get(trip.vehicleId()), driversById.get(trip.driverId()),
                             placesById.get(trip.originPlaceId()), placesById.get(trip.destinationPlaceId()),
-                            analysed.odometerKm(), analysed.pending(), analysed.divergences());
+                            analysed.odometerKm(), analysed.unrecordedKm(), analysed.pending(),
+                            analysed.divergences());
                 })
                 .toList();
     }

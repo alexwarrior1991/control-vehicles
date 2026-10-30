@@ -28,7 +28,13 @@ public final class Fixtures {
     public static Trip trip(long id, long vehicleId, long driverId, String date, String start, String end,
                             int odometer) {
         return new Trip(id, vehicleId, driverId, LocalDate.parse(date), LocalTime.parse(start), LocalTime.parse(end),
-                1L, 2L, odometer, BigDecimal.ZERO, null, null, null);
+                1L, 2L, odometer, null, BigDecimal.ZERO, null, null, null);
+    }
+
+    public static Trip withEnd(Trip trip, int endOdometer) {
+        return new Trip(trip.id(), trip.vehicleId(), trip.driverId(), trip.date(), trip.startTime(), trip.endTime(),
+                trip.originPlaceId(), trip.destinationPlaceId(), trip.startOdometerKm(), endOdometer, trip.tollsPaid(),
+                trip.notes(), trip.route(), trip.price());
     }
 
     public static Trip withGoogle(Trip trip, int meters, int seconds) {

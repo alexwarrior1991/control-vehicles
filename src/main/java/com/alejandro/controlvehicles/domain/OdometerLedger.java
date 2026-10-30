@@ -5,9 +5,12 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * The trips of one vehicle in the order they happened, each with the distance the odometer says it covered:
- * the next trip's start minus its own. The last trip has no distance yet ({@code null}), and neither has one
- * followed by a start that does not increase.
+ * The trips of one vehicle in the order they happened, each with the distance the odometer says it covered.
+ * With its end odometer noted, that is end minus start, and the kilometres between its end and the next trip's
+ * start are {@code unrecordedKm}: the vehicle moved and nobody registered it. Without it, the distance is the next
+ * trip's start minus its own, unrecorded use included and indistinguishable. A trip without end and without a
+ * next trip has no distance yet ({@code null}, pending), and neither has one followed by a start below where it
+ * ended (or started).
  */
 public final class OdometerLedger {
 
@@ -16,15 +19,23 @@ public final class OdometerLedger {
             .thenComparingInt(Trip::startOdometerKm)
             .thenComparing(trip -> trip.id() == null ? Long.MAX_VALUE : trip.id());
 
-    public record Entry(Trip trip, Trip previous, Trip next, Integer odometerKm) {
+    public record Entry(Trip trip, Trip previous, Trip next, Integer odometerKm, Integer unrecordedKm) {
 
         public boolean pending() {
-            return next == null;
+            return odometerKm == null && next == null;
         }
 
-        /** The start of this trip is not above the previous one's. */
+        /**
+         * This trip starts below the previous one's end, or, when the previous one has no end, not above its
+         * start.
+         */
         public boolean notIncreasing() {
-            return previous != null && trip.startOdometerKm() <= previous.startOdometerKm();
+            if (previous == null) {
+                return false;
+            }
+            return previous.endOdometerKm() != null
+                    ? trip.startOdometerKm() < previous.endOdometerKm()
+                    : trip.startOdometerKm() <= previous.startOdometerKm();
         }
     }
 
@@ -39,10 +50,16 @@ public final class OdometerLedger {
             Trip previous = i > 0 ? ordered.get(i - 1) : null;
             Trip next = i + 1 < ordered.size() ? ordered.get(i + 1) : null;
             Integer km = null;
-            if (next != null && next.startOdometerKm() > trip.startOdometerKm()) {
+            Integer unrecorded = null;
+            if (trip.endOdometerKm() != null) {
+                km = trip.endOdometerKm() - trip.startOdometerKm();
+                if (next != null && next.startOdometerKm() >= trip.endOdometerKm()) {
+                    unrecorded = next.startOdometerKm() - trip.endOdometerKm();
+                }
+            } else if (next != null && next.startOdometerKm() > trip.startOdometerKm()) {
                 km = next.startOdometerKm() - trip.startOdometerKm();
             }
-            entries.add(new Entry(trip, previous, next, km));
+            entries.add(new Entry(trip, previous, next, km, unrecorded));
         }
         return entries;
     }

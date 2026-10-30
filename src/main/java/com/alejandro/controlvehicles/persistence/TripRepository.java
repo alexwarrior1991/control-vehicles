@@ -38,8 +38,8 @@ public final class TripRepository {
         RouteEstimate route = trip.route();
         PriceQuote price = trip.price();
         Object[] values = {trip.vehicleId(), trip.driverId(), trip.date(), trip.startTime(), trip.endTime(),
-                trip.originPlaceId(), trip.destinationPlaceId(), trip.startOdometerKm(), trip.tollsPaid(),
-                trip.notes(),
+                trip.originPlaceId(), trip.destinationPlaceId(), trip.startOdometerKm(), trip.endOdometerKm(),
+                trip.tollsPaid(), trip.notes(),
                 route == null ? null : route.distanceMeters(), route == null ? null : route.durationSeconds(),
                 route == null ? null : route.tollStatus(), route == null ? null : route.tollEstimate(),
                 route == null ? null : route.computedAt(),
@@ -49,18 +49,19 @@ public final class TripRepository {
             if (trip.id() == null) {
                 long id = Sql.insert(c, """
                         INSERT INTO trip (vehicle_id, driver_id, trip_date, start_time, end_time, origin_place_id,
-                                          destination_place_id, start_odometer_km, tolls_paid, notes,
+                                          destination_place_id, start_odometer_km, end_odometer_km,
+                                          tolls_paid, notes,
                                           google_distance_m, google_duration_s, google_toll_status,
                                           google_toll_estimate, google_computed_at, fuel_price_per_l,
                                           fuel_price_source, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", append(values, now, now));
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", append(values, now, now));
                 return trip.withId(id);
             }
             Sql.update(c, """
                     UPDATE trip SET vehicle_id = ?, driver_id = ?, trip_date = ?, start_time = ?, end_time = ?,
                                     origin_place_id = ?, destination_place_id = ?, start_odometer_km = ?,
-                                    tolls_paid = ?, notes = ?, google_distance_m = ?, google_duration_s = ?,
-                                    google_toll_status = ?, google_toll_estimate = ?, google_computed_at = ?,
+                                    end_odometer_km = ?, tolls_paid = ?, notes = ?, google_distance_m = ?,
+                                    google_duration_s = ?, google_toll_status = ?, google_toll_estimate = ?, google_computed_at = ?,
                                     fuel_price_per_l = ?, fuel_price_source = ?, updated_at = ?
                     WHERE id = ?""", append(values, now, trip.id()));
             return trip;
@@ -89,6 +90,7 @@ public final class TripRepository {
         return new Trip(rs.getLong("id"), rs.getLong("vehicle_id"), rs.getLong("driver_id"),
                 Rows.date(rs, "trip_date"), Rows.time(rs, "start_time"), Rows.time(rs, "end_time"),
                 Rows.longOrNull(rs, "origin_place_id"), Rows.longOrNull(rs, "destination_place_id"),
-                rs.getInt("start_odometer_km"), Rows.decimal(rs, "tolls_paid"), rs.getString("notes"), route, price);
+                rs.getInt("start_odometer_km"), Rows.intOrNull(rs, "end_odometer_km"), Rows.decimal(rs, "tolls_paid"),
+                rs.getString("notes"), route, price);
     }
 }

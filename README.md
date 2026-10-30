@@ -8,7 +8,7 @@ the drivers declare, every refuel, what the fuel should have cost and what it re
 
 | Screen | What for |
 |---|---|
-| **Trips** | Register a trip as the driver declares it: vehicle, driver, date, start and end time, origin and destination (Google Places autocomplete), **odometer at the start** and tolls paid. Google Routes adds the real distance, driving time and estimated tolls; the price of a litre that day around the origin is added too. |
+| **Trips** | Register a trip as the driver declares it: vehicle, driver, date, start and end time, origin and destination (Google Places autocomplete), **odometer at the start**, odometer at the end if it was noted, and tolls paid. Google Routes adds the real distance, driving time and estimated tolls; the price of a litre that day around the origin is added too. |
 | **Refuels** | Litres, amount, odometer and whether the tank was filled. Below, the consumption measured between two full tanks against the vehicle's nominal one. |
 | **Divergences** | Everything that does not add up, the worst first (see below). |
 | **Monthly report** | Per vehicle and per driver: odometer km vs Google km, real spend (refuels) vs expected cost (Google km × nominal consumption × price) and the cost by odometer km, tolls declared vs estimated. Exported to CSV for Excel. |
@@ -16,15 +16,21 @@ the drivers declare, every refuel, what the fuel should have cost and what it re
 | **Fuel prices** | The stored daily averages per country, fuel and brand; fetch today's or type one by hand. |
 | **Settings** | Google API key, divergence thresholds, price radius and brand, and **export / import of the database**. |
 
-### Odometer: only the start is noted
+### Odometer: the start always, the end when it is noted
 
-Drivers write the odometer when they start, not when they finish. The distance of a trip is therefore the start
-of the **next** trip of the same vehicle minus its own start, computed every time (never stored): registering an
-older trip later, or fixing one, recalculates everything. The latest trip of each vehicle shows *pending*.
+Drivers write the odometer when they start; the end is an optional field for the day they also note it.
 
-The consequence is useful: any use of the vehicle nobody registered between two trips falls inside the odometer
-distance of the earlier one, and the *odometer vs Google* divergence brings it up. Refuels are another odometer
-reading: one that does not fit between the trips around it is flagged.
+- **Without the end**, the distance of a trip is the start of the **next** trip of the same vehicle minus its own
+  start. Any use of the vehicle nobody registered between two trips falls inside that distance, and the
+  *odometer vs Google* divergence brings it up, but it cannot be told apart from the trip itself. The latest trip
+  of each vehicle shows *pending* until the next one is registered.
+- **With the end**, the distance of the trip is end minus start (known at once, never *pending*), and the
+  kilometres between its end and the next trip's start are **unrecorded use**: a column of their own in the trip
+  list and the monthly report, and the *unrecorded use* divergence, attributed to the driver who had the vehicle
+  last.
+
+Nothing of this is stored: registering an older trip later, or fixing one, recalculates everything. Refuels are
+another odometer reading: one that does not fit between the trips around it is flagged.
 
 ### Divergences
 
@@ -32,7 +38,8 @@ reading: one that does not fit between the trips around it is flagged.
 |---|---|
 | Odometer vs Google distance | more than 10 % **and** more than 5 km (high above 20 %) |
 | Declared vs Google duration | more than 30 % **and** more than 15 min (high if shorter than half Google's time) |
-| Odometer not increasing | a trip starts at or below the previous one's start |
+| Odometer not increasing | a trip starts below the previous one's end, or at or below its start when it has no end |
+| Unrecorded use between trips | more than 3 km between a trip's noted end and the next start (high above 30 km) |
 | Vehicle / driver in two trips at once | overlapping times |
 | Declared vs Google tolls | more than 1 € apart, or tolls declared on a route without any |
 | Refuel odometer out of sequence | the refuel's odometer is not between the trips around it |

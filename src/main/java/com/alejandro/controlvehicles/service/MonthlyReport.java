@@ -12,11 +12,13 @@ import java.util.List;
 public record MonthlyReport(YearMonth month, List<Line> vehicles, List<Line> drivers, Line total) {
 
     /**
-     * One row. {@code measuredL100} only exists for vehicles with two full tanks in the month;
-     * {@code realSpend} and {@code litresRefuelled} only count, for a driver, the refuels that name them.
+     * One row. {@code odometerKm} is the trips' own distance; {@code unrecordedKm} what the vehicle did between a
+     * trip's noted end and the next start (for a driver: after their trips, while they had it last).
+     * {@code measuredL100} only exists for vehicles with two full tanks in the month; {@code realSpend} and
+     * {@code litresRefuelled} only count, for a driver, the refuels that name them.
      */
     public record Line(String name, int trips, int pendingTrips, int tripsWithoutPrice, int odometerKm,
-                       BigDecimal googleKm, BigDecimal gapKm, BigDecimal nominalL100, BigDecimal measuredL100,
+                       int unrecordedKm, BigDecimal googleKm, BigDecimal gapKm, BigDecimal nominalL100, BigDecimal measuredL100,
                        BigDecimal litresRefuelled, BigDecimal realSpend, BigDecimal expectedCost,
                        BigDecimal odometerCost, BigDecimal tollsDeclared, BigDecimal tollsEstimated,
                        int divergences) {

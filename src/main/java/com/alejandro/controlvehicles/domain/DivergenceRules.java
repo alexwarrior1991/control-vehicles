@@ -78,15 +78,35 @@ public final class DivergenceRules {
         };
     }
 
-    /** A trip that starts with an odometer not above the previous trip's start. */
+    /** A trip that starts below where the previous one ended, or not above where it started. */
     public static Optional<Divergence> odometerSequence(OdometerLedger.Entry entry) {
         if (!entry.notIncreasing()) {
             return Optional.empty();
         }
-        String detail = String.format(Locale.ENGLISH, "Starts at %,d km, previous trip (%s) started at %,d km",
-                entry.trip().startOdometerKm(), Formats.dateTime(entry.previous().startAt()),
-                entry.previous().startOdometerKm());
+        Trip previous = entry.previous();
+        String detail = previous.endOdometerKm() != null
+                ? String.format(Locale.ENGLISH, "Starts at %,d km, previous trip (%s) ended at %,d km",
+                entry.trip().startOdometerKm(), Formats.dateTime(previous.startAt()), previous.endOdometerKm())
+                : String.format(Locale.ENGLISH, "Starts at %,d km, previous trip (%s) started at %,d km",
+                entry.trip().startOdometerKm(), Formats.dateTime(previous.startAt()), previous.startOdometerKm());
         return Optional.of(onTrip(DivergenceKind.ODOMETER_NOT_INCREASING, Severity.HIGH, entry.trip(), detail));
+    }
+
+    /**
+     * Kilometres between a trip's noted end and the next trip's start: the vehicle moved and nobody registered it.
+     * Reported on the trip after which it happened, whose driver had the vehicle last.
+     */
+    public static Optional<Divergence> unrecordedUse(OdometerLedger.Entry entry, DivergenceThresholds thresholds) {
+        Integer gap = entry.unrecordedKm();
+        if (gap == null || gap <= thresholds.unrecordedMinKm()) {
+            return Optional.empty();
+        }
+        Severity severity = gap > 10 * Math.max(1, thresholds.unrecordedMinKm()) ? Severity.HIGH : Severity.WARNING;
+        String detail = String.format(Locale.ENGLISH,
+                "%,d km unrecorded: ended at %,d km, the next trip (%s) started at %,d km", gap,
+                entry.trip().endOdometerKm(), Formats.dateTime(entry.next().startAt()),
+                entry.next().startOdometerKm());
+        return Optional.of(onTrip(DivergenceKind.UNRECORDED_USE, severity, entry.trip(), detail));
     }
 
     /**

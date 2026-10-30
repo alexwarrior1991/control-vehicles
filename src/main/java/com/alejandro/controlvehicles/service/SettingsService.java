@@ -40,7 +40,8 @@ public final class SettingsService {
                 integer(values, "divergence.durationMinMinutes", d.durationMinMinutes()),
                 integer(values, "divergence.consumptionPercent", d.consumptionPercent()),
                 values.containsKey("divergence.tollToleranceEur")
-                        ? new BigDecimal(values.get("divergence.tollToleranceEur")) : d.tollToleranceEur());
+                        ? new BigDecimal(values.get("divergence.tollToleranceEur")) : d.tollToleranceEur(),
+                integer(values, "divergence.unrecordedMinKm", d.unrecordedMinKm()));
         AppSettings defaults = AppSettings.DEFAULTS;
         return new AppSettings(thresholds, integer(values, "price.radiusKm", defaults.priceRadiusKm()),
                 values.getOrDefault("price.preferredBrand", defaults.preferredBrand()),
@@ -56,6 +57,7 @@ public final class SettingsService {
         values.put("divergence.durationMinMinutes", String.valueOf(t.durationMinMinutes()));
         values.put("divergence.consumptionPercent", String.valueOf(t.consumptionPercent()));
         values.put("divergence.tollToleranceEur", t.tollToleranceEur().toPlainString());
+        values.put("divergence.unrecordedMinKm", String.valueOf(t.unrecordedMinKm()));
         values.put("price.radiusKm", String.valueOf(settings.priceRadiusKm()));
         values.put("price.preferredBrand", settings.preferredBrand() == null ? "" : settings.preferredBrand());
         values.put("price.defaultCountry", settings.defaultCountry().name());
