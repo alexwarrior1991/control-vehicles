@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Control Vehicles (sandbox data)" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.alejandro.controlvehicles.app.Launcher" />
+    <module name="control-vehicles" />
+    <option name="VM_PARAMETERS" value="-Dcontrolvehicles.home=$PROJECT_DIR$/.local-data" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
