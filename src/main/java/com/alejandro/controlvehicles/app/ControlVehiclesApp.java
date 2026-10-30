@@ -1,6 +1,6 @@
 package com.alejandro.controlvehicles.app;
 
-import com.alejandro.controlvehicles.ui.AppFonts;
+import com.alejandro.controlvehicles.ui.AppLook;
 import com.alejandro.controlvehicles.ui.MainWindow;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -12,11 +12,11 @@ public final class ControlVehiclesApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        AppFonts.load();
+        AppLook.load();
         AppContext context = new AppContext(AppContext.defaultHome(), Clock.systemDefaultZone());
         MainWindow window = new MainWindow(context, getHostServices());
         Scene scene = new Scene(window, 1280, 800);
-        AppFonts.style(scene);
+        AppLook.style(scene);
         stage.setTitle("Control Vehicles");
         stage.setScene(scene);
         stage.setMinWidth(960);

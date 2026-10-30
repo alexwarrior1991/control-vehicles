@@ -114,7 +114,7 @@ final class RefuelImportDialog {
             dialog.initOwner(owner.getScene().getWindow());
             dialog.getDialogPane().setContent(body);
             dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-            AppFonts.style(dialog.getDialogPane());
+            AppLook.style(dialog.getDialogPane());
             dialog.setResizable(true);
             Button ok = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
             ok.setText("Import");

@@ -159,4 +159,5 @@ src/main/java/com/alejandro/controlvehicles/
 ```
 
 The interface uses **JetBrains Mono**, bundled in the jar (`ui/fonts/`, SIL Open Font License, `OFL.txt` next to
-it), so it looks the same on a computer that does not have the font installed.
+it), so it looks the same on a computer that does not have the font installed. The icon (window, taskbar and
+the packaged `.exe`) is in `ui/icons/`; `python3 scripts/draw_icon.py` redraws it (Pillow and ImageMagick).

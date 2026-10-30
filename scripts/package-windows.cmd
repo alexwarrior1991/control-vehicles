@@ -32,6 +32,7 @@ echo Packaging (%TYPE%) ...
 jpackage --name "Control Vehicles" --app-version 1.0.0 --vendor "Control Vehicles" ^
     --input target\dist --main-jar control-vehicles.jar ^
     --main-class com.alejandro.controlvehicles.app.Launcher ^
+    --icon src\main\resources\com\alejandro\controlvehicles\ui\icons\app.ico ^
     --dest target\installer --type %TYPE% %EXTRA%
 if errorlevel 1 exit /b 1
 
