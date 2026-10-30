@@ -1,0 +1,28 @@
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "place": "places/ChIJgTwKgJcpQg0RaSKMYcHeNsQ",
+        "placeId": "ChIJgTwKgJcpQg0RaSKMYcHeNsQ",
+        "text": {"text": "Madrid, Spain"},
+        "structuredFormat": {
+          "mainText": {"text": "Madrid"},
+          "secondaryText": {"text": "Spain"}
+        }
+      }
+    },
+    {
+      "queryPrediction": {"text": {"text": "madrid airport"}}
+    },
+    {
+      "placePrediction": {
+        "placeId": "ChIJ8a7d-Y8nQg0R0b7z1w2GmNM",
+        "text": {"text": "Madrid-Barajas Airport, Madrid, Spain"},
+        "structuredFormat": {
+          "mainText": {"text": "Madrid-Barajas Airport"},
+          "secondaryText": {"text": "Madrid, Spain"}
+        }
+      }
+    }
+  ]
+}

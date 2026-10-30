@@ -1,0 +1,21 @@
+{
+  "status": true,
+  "mensagem": "sucesso",
+  "resultado": [
+    {
+      "Id": 65407, "Nome": "Galp Lisboa Av. da Liberdade", "TipoPosto": "Outro", "Municipio": "Lisboa",
+      "Preco": "1,659 €", "Marca": "GALP", "Combustivel": "Gasóleo simples",
+      "DataAtualizacao": "2026-10-30 08:00", "Distrito": "Lisboa", "Morada": "Av. da Liberdade",
+      "Localidade": "Lisboa", "CodPostal": "1250-142", "Latitude": 38.7200, "Longitude": -9.1450
+    },
+    {
+      "Id": 65408, "Nome": "BP Alcântara", "TipoPosto": "Outro", "Municipio": "Lisboa",
+      "Preco": "1,699 €", "Marca": "BP", "Combustivel": "Gasóleo simples",
+      "DataAtualizacao": "2026-10-30 08:00", "Distrito": "Lisboa", "Morada": "Rua de Cascais",
+      "Localidade": "Lisboa", "CodPostal": "1300-001", "Latitude": "38,7050", "Longitude": "-9,1800"
+    },
+    {
+      "Id": 65409, "Nome": "Sem preço", "Marca": "GALP", "Preco": "", "Latitude": 38.7, "Longitude": -9.1
+    }
+  ]
+}

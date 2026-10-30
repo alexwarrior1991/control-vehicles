@@ -1,0 +1,10 @@
+{
+  "id": "ChIJ8f21C60Lag0R_q11auhbf8Y",
+  "formattedAddress": "Toledo, Spain",
+  "location": {"latitude": 39.8628316, "longitude": -4.0273231},
+  "addressComponents": [
+    {"longText": "Toledo", "shortText": "Toledo", "types": ["locality", "political"]},
+    {"longText": "Spain", "shortText": "ES", "types": ["country", "political"]}
+  ],
+  "displayName": {"text": "Toledo"}
+}
