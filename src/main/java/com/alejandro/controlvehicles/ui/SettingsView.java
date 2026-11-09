@@ -9,7 +9,10 @@ import javafx.application.HostServices;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
@@ -94,9 +97,15 @@ public final class SettingsView implements AppView {
         importButton.setOnAction(event -> importDatabase());
         Button folder = new Button("Open data folder");
         folder.setOnAction(event -> hostServices.showDocument(context.database.file().getParent().toUri().toString()));
+        Button deleteAll = new Button("Delete all data…");
+        deleteAll.getStyleClass().add("danger");
+        deleteAll.setOnAction(event -> deleteAllData());
         FormGrid database = new FormGrid().add("File", path).add("", new HBox(8, export, importButton, folder))
                 .addWide(hint("The export is one .db file with everything (drivers, vehicles, trips, refuels, prices and"
-                        + " rules). Importing replaces the current data; a backup of it is left next to it."));
+                        + " rules). Importing replaces the current data; a backup of it is left next to it."))
+                .add("Start from scratch", deleteAll)
+                .addWide(hint("Deletes every driver, vehicle, place, trip, refuel and stored price. A backup is saved"
+                        + " next to the database first: importing it brings everything back."));
 
         content.getChildren().addAll(section("Google"), google, section("Rules"), rules, section("Database"),
                 database);
@@ -196,6 +205,44 @@ public final class SettingsView implements AppView {
         }
         Background.run(() -> context.transfer.importFrom(file.toPath()), (Path backup) -> {
             Dialogs.info("Database imported", "Previous data saved as " + backup);
+            onDatabaseReplaced.run();
+        });
+    }
+
+    private void deleteAllData() {
+        CheckBox alsoRules = new CheckBox("Also reset the rules (thresholds, price search, statement columns)"
+                + " to their defaults");
+        TextField confirmation = new TextField();
+        confirmation.setPromptText("DELETE");
+        Label explanation = new Label("Every driver, vehicle, place, trip, refuel and stored fuel price is deleted."
+                + " A backup of everything is saved first next to the database, so it can be brought back with"
+                + " «Import database». The Google API key is kept.");
+        explanation.setWrapText(true);
+        explanation.setMaxWidth(520);
+        VBox body = new VBox(10, explanation, alsoRules, new Label("Type DELETE to confirm:"), confirmation);
+        body.setPadding(new Insets(12));
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Delete all data");
+        dialog.setHeaderText("Delete all the data and start from scratch?");
+        dialog.initOwner(content.getScene().getWindow());
+        dialog.getDialogPane().setContent(body);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        AppLook.style(dialog.getDialogPane());
+        Button ok = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        ok.setText("Delete everything");
+        ok.getStyleClass().add("danger");
+        ok.disableProperty().bind(confirmation.textProperty().map(text -> !"DELETE".equals(text.trim())));
+        javafx.application.Platform.runLater(confirmation::requestFocus);
+        if (dialog.showAndWait().filter(ButtonType.OK::equals).isEmpty()) {
+            return;
+        }
+        boolean rules = alsoRules.isSelected();
+        Background.run(() -> context.transfer.deleteAllData(rules), (Path backup) -> {
+            Dialogs.info("All data deleted", "The application is empty again."
+                    + (rules ? " The rules are back to their defaults." : "")
+                    + "\n\nBackup of what there was: " + backup);
+            refresh();
             onDatabaseReplaced.run();
         });
     }

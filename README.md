@@ -62,6 +62,13 @@ another odometer reading: one that does not fit between the trips around it is f
   the refuels — shown as `~120,150 (est.)`. An estimated refuel never sets a consumption boundary (its litres
   still count) nor an odometer check; typing the real reading clears the mark.
 
+### Starting from scratch
+
+*Settings → Database → Delete all data…* deletes every driver, vehicle, place, trip, refuel and stored price,
+after typing `DELETE` to confirm. A backup of everything is saved first next to the database
+(`control-vehicles-before-reset-<date>.db`): *Import database* with it brings everything back. The rules are kept
+unless «Also reset the rules» is ticked; the Google API key is never touched.
+
 ### Completing pending trips
 
 A trip saved while Google or the price service did not answer has no route or no price.

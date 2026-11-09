@@ -15,12 +15,13 @@ import java.sql.Statement;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * Handing the data to someone else: the export is one compact .db file written by SQLite itself
  * ({@code VACUUM INTO}), consistent even while the application runs; the import checks the file is a
- * control-vehicles database, backs up the current one next to it and replaces it. The Google key is not in the
- * database, so it never travels.
+ * control-vehicles database, backs up the current one next to it and replaces it. Deleting all the data backs it
+ * up the same way first. The Google key is not in the database, so it never travels nor is deleted.
  */
 public final class DatabaseTransferService {
 
@@ -47,6 +48,35 @@ public final class DatabaseTransferService {
         database.executeAutoCommit("VACUUM INTO '" + absolute.toString().replace("'", "''") + "'");
     }
 
+    /**
+     * Starting from scratch: a backup of everything first (next to the database), then every driver, vehicle,
+     * place, trip, refuel and stored price is deleted. The rules (thresholds, price search, the statement mapping)
+     * are kept unless {@code alsoRules}; the Google key is not in the database and is never touched. Returns the
+     * backup, which can be imported to undo it.
+     */
+    public Path deleteAllData(boolean alsoRules) {
+        Path backup = backupPath("before-reset");
+        exportTo(backup);
+        database.transaction(c -> {
+            try (Statement statement = c.createStatement()) {
+                // Primero lo que referencia, después lo referenciado.
+                for (String table : alsoRules
+                        ? List.of("trip", "refuel", "place", "driver", "vehicle", "fuel_price", "app_setting")
+                        : List.of("trip", "refuel", "place", "driver", "vehicle", "fuel_price")) {
+                    statement.executeUpdate("DELETE FROM " + table);
+                }
+            }
+            return null;
+        });
+        database.executeAutoCommit("VACUUM");
+        return backup;
+    }
+
+    private Path backupPath(String what) {
+        return database.file().resolveSibling(database.file().getFileName().toString().replace(".db", "")
+                + "-" + what + "-" + STAMP.format(LocalDateTime.now(clock)) + ".db");
+    }
+
     /** Replaces the database with the file; returns where the previous one was backed up. */
     public Path importFrom(Path source) {
         Path absolute = source.toAbsolutePath();
@@ -54,8 +84,7 @@ public final class DatabaseTransferService {
             throw new ValidationException("That file is already the database in use");
         }
         check(absolute);
-        Path backup = database.file().resolveSibling(database.file().getFileName().toString().replace(".db", "")
-                + "-backup-" + STAMP.format(LocalDateTime.now(clock)) + ".db");
+        Path backup = backupPath("backup");
         try {
             if (Files.exists(database.file())) {
                 exportTo(backup);

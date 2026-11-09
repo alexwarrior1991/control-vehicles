@@ -349,6 +349,37 @@ class ServicesTest {
     }
 
     @Test
+    void deletingAllDataLeavesTheApplicationEmptyKeepsTheRulesAndCanBeUndone() throws Exception {
+        app.trips.save(trip(TODAY, "08:00", "09:10", madrid, toledo, 100_000), null);
+        app.refuels.save(refuel(LocalDateTime.of(2026, 10, 30, 12, 0), 100_050, "40", "58.80", true));
+        app.settings.save(new AppSettings(AppSettings.DEFAULTS.thresholds(), 10, "GALP", Country.PT));
+
+        Path backup = app.transfer.deleteAllData(false);
+
+        assertTrue(app.fleet.drivers().isEmpty());
+        assertTrue(app.fleet.vehicles().isEmpty());
+        assertTrue(app.trips.rows().isEmpty());
+        assertTrue(app.refuels.all().isEmpty());
+        assertTrue(app.fuelPrices.all().isEmpty());
+        assertTrue(app.places.searchStored("Madrid").isEmpty());
+        assertEquals(10, app.settings.load().priceRadiusKm(), "the rules are kept");
+        assertEquals("test-key", app.settings.googleApiKey(), "the key is not in the database");
+        assertTrue(backup.getFileName().toString().contains("before-reset"));
+
+        app.fleet.save(new Driver(null, "New start", null, null, null, true, null));
+        app.transfer.importFrom(backup);
+        assertEquals(1, app.trips.rows().size(), "the backup brings everything back");
+        assertEquals("Ana Pérez", app.fleet.drivers().getFirst().name());
+    }
+
+    @Test
+    void deletingAllDataCanAlsoResetTheRules() {
+        app.settings.save(new AppSettings(AppSettings.DEFAULTS.thresholds(), 10, "GALP", Country.PT));
+        app.transfer.deleteAllData(true);
+        assertEquals(AppSettings.DEFAULTS, app.settings.load());
+    }
+
+    @Test
     void anythingElseIsNotImported() throws Exception {
         Path text = home.resolve("notes.db");
         Files.writeString(text, "not a database");
