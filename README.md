@@ -69,6 +69,22 @@ after typing `DELETE` to confirm. A backup of everything is saved first next to 
 (`control-vehicles-before-reset-<date>.db`): *Import database* with it brings everything back. The rules are kept
 unless «Also reset the rules» is ticked; the Google API key is never touched.
 
+### Drivers' phone app
+
+Drivers can log trips from their phone with two buttons, **EMPIEZO** and **TERMINO**, taking the time and the GPS
+position by themselves and working without coverage. The app and its backend (a Google Sheet with an Apps Script)
+live in their own repository, [control-vehicles-mobile](https://github.com/alexwarrior1991/control-vehicles-mobile),
+whose README explains the one-time setup. Here:
+
+- *Settings → Mobile*: the **web app URL** and the **admin secret** of that script (kept on this computer, never in
+  the exported database), **Test**, and **Publish drivers and vehicles** (again after adding or changing any).
+- *Settings → Mobile → Driver's link*: **Copy link** gives each driver their personal link; **New link** revokes
+  the old one.
+- *Trips → Bring trips from mobile*: every finished trip becomes a normal trip — Google route, fuel price,
+  divergences — with the GPS points as origin and destination (a stored place within 250 m is reused; otherwise
+  the place is named after the nearest one Google knows). Trips still in progress wait; cancelled ones are dropped;
+  one whose vehicle or driver is not here stays on the Sheet and is listed. A trip is never imported twice.
+
 ### Completing pending trips
 
 A trip saved while Google or the price service did not answer has no route or no price.

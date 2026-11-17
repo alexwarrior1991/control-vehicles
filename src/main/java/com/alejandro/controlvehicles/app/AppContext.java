@@ -6,6 +6,7 @@ import com.alejandro.controlvehicles.integration.fuel.SpainMitecoProvider;
 import com.alejandro.controlvehicles.integration.google.GoogleSettings;
 import com.alejandro.controlvehicles.integration.google.PlacesClient;
 import com.alejandro.controlvehicles.integration.google.RoutesClient;
+import com.alejandro.controlvehicles.integration.mobile.MobileClient;
 import com.alejandro.controlvehicles.persistence.Database;
 import com.alejandro.controlvehicles.persistence.DriverRepository;
 import com.alejandro.controlvehicles.persistence.FuelPriceRepository;
@@ -19,6 +20,8 @@ import com.alejandro.controlvehicles.service.CsvExporter;
 import com.alejandro.controlvehicles.service.DatabaseTransferService;
 import com.alejandro.controlvehicles.service.FleetService;
 import com.alejandro.controlvehicles.service.FuelPriceService;
+import com.alejandro.controlvehicles.service.MobileService;
+import com.alejandro.controlvehicles.service.MobileSettings;
 import com.alejandro.controlvehicles.service.PlaceService;
 import com.alejandro.controlvehicles.service.RefuelService;
 import com.alejandro.controlvehicles.service.ReportService;
@@ -49,6 +52,7 @@ public final class AppContext {
     public final ReportService reports;
     public final DatabaseTransferService transfer;
     public final RefuelImportService refuelImport;
+    public final MobileService mobile;
     public final CsvExporter csv = new CsvExporter();
 
     /** Where the external services are; only the tests point them elsewhere. */
@@ -79,7 +83,8 @@ public final class AppContext {
         Supplier<GoogleSettings> googleSettings = () -> new GoogleSettings(settings.googleApiKey(),
                 endpoints.googlePlaces(), endpoints.googleRoutes(), "en");
         fleet = new FleetService(driverRepository, vehicleRepository);
-        places = new PlaceService(placeRepository, new PlacesClient(googleSettings, google));
+        PlacesClient placesClient = new PlacesClient(googleSettings, google);
+        places = new PlaceService(placeRepository, placesClient);
         analysis = new AnalysisService(vehicleRepository, tripRepository, refuelRepository, settings::load);
         fuelPrices = new FuelPriceService(List.of(
                 new SpainMitecoProvider(endpoints.miteco(), fuel, clock),
@@ -90,6 +95,12 @@ public final class AppContext {
         refuels = new RefuelService(refuelRepository, vehicleRepository, driverRepository, analysis);
         reports = new ReportService(vehicleRepository, driverRepository, tripRepository, refuelRepository, analysis);
         transfer = new DatabaseTransferService(database, clock);
+        MobileClient mobileClient = new MobileClient(() -> {
+            MobileSettings s = settings.mobileSettings();
+            return new MobileClient.Connection(s.apiUrl(), s.secret());
+        }, new HttpJson(Duration.ofSeconds(60)));
+        mobile = new MobileService(mobileClient, settings::mobileSettings, driverRepository, vehicleRepository,
+                tripRepository, refuelRepository, placeRepository, placesClient, trips, clock);
         refuelImport = new RefuelImportService(vehicleRepository, tripRepository, refuelRepository, settingRepository,
                 settings::load);
     }

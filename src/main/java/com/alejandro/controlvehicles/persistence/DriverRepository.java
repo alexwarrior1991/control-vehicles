@@ -46,6 +46,16 @@ public final class DriverRepository {
         });
     }
 
+    /** The token of the driver's personal link to the phone app, if they have one. */
+    public Optional<String> mobileToken(long id) {
+        return database.read(c -> Sql.one(c,
+                "SELECT mobile_token FROM driver WHERE id = ? AND mobile_token IS NOT NULL", rs -> rs.getString(1), id));
+    }
+
+    public void setMobileToken(long id, String token) {
+        database.transaction(c -> Sql.update(c, "UPDATE driver SET mobile_token = ? WHERE id = ?", token, id));
+    }
+
     public void delete(long id) {
         database.transaction(c -> Sql.update(c, "DELETE FROM driver WHERE id = ?", id));
     }

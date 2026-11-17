@@ -74,7 +74,9 @@ public final class TripsView implements AppView {
         Button delete = new Button("Delete");
         delete.setOnAction(event -> selected(this::delete));
         completePending.setOnAction(event -> completePending());
-        FlowPane actions = new FlowPane(8, 8, add, edit, recalculate, maps, delete, completePending);
+        Button fromMobile = new Button("Bring trips from mobile");
+        fromMobile.setOnAction(event -> pullFromMobile(fromMobile));
+        FlowPane actions = new FlowPane(8, 8, add, edit, recalculate, maps, delete, completePending, fromMobile);
 
         vehicleFilter.setPrefWidth(220);
         driverFilter.setPrefWidth(180);
@@ -235,6 +237,35 @@ public final class TripsView implements AppView {
     private void edit(TripRow row) {
         TripDialog.show(root, context, row == null ? null : row.trip(), row == null ? null : row.origin(),
                 row == null ? null : row.destination()).ifPresent(this::afterSave);
+    }
+
+    /** The finished trips of the drivers' phone app, each one saved as a normal trip. */
+    private void pullFromMobile(Button button) {
+        button.setDisable(true);
+        button.setText("Bringing trips…");
+        Background.run(context.mobile::pull, result -> {
+            button.setDisable(false);
+            button.setText("Bring trips from mobile");
+            refresh();
+            List<String> lines = new java.util.ArrayList<>();
+            lines.add(result.imported() + (result.imported() == 1 ? " trip" : " trips") + " brought from the phones.");
+            if (result.waiting() > 0) {
+                lines.add(result.waiting() + " still in progress on a phone: they will come when they end.");
+            }
+            if (result.cancelled() > 0) {
+                lines.add(result.cancelled() + " cancelled by the driver, ignored.");
+            }
+            if (!result.skipped().isEmpty()) {
+                lines.add("Not brought (they stay on the Sheet; fix them and bring again):");
+                result.skipped().stream().limit(10).forEach(lines::add);
+            }
+            result.warnings().stream().limit(8).forEach(lines::add);
+            Dialogs.info("Trips from mobile", String.join("\n", lines));
+        }, failure -> {
+            button.setDisable(false);
+            button.setText("Bring trips from mobile");
+            Dialogs.error(failure);
+        });
     }
 
     private void completePending() {

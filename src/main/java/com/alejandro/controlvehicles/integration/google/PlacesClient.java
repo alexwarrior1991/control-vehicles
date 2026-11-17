@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -72,6 +73,47 @@ public final class PlacesClient {
                 place.path("formattedAddress").asText(null),
                 location.has("latitude") ? location.get("latitude").asDouble() : null,
                 location.has("longitude") ? location.get("longitude").asDouble() : null, country);
+    }
+
+    /**
+     * A name for a GPS point (a trip from the phone app): the place Google knows nearest to it within 150 m, as its
+     * town and address; the coordinates stay the given ones, so the route is computed from where the phone was.
+     * Empty when Google knows nothing there.
+     */
+    public Optional<Place> nearest(double latitude, double longitude) {
+        GoogleSettings settings = requireKey();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("locationRestriction", Map.of("circle", Map.of(
+                "center", Map.of("latitude", latitude, "longitude", longitude), "radius", 150.0)));
+        body.put("maxResultCount", 1);
+        body.put("rankPreference", "DISTANCE");
+        body.put("languageCode", settings.languageCode());
+        JsonNode response = GoogleErrors.call(() -> http.post(settings.placesBaseUrl() + "/v1/places:searchNearby",
+                Map.of("X-Goog-Api-Key", settings.apiKey(),
+                        "X-Goog-FieldMask", "places.displayName,places.formattedAddress,places.addressComponents"),
+                body));
+        JsonNode place = response.path("places").path(0);
+        if (place.isMissingNode()) {
+            return Optional.empty();
+        }
+        Country country = null;
+        String locality = null;
+        for (JsonNode component : place.path("addressComponents")) {
+            for (JsonNode type : component.path("types")) {
+                switch (type.asText()) {
+                    case "country" -> country = Country.fromIsoCode(component.path("shortText").asText()).orElse(null);
+                    case "locality" -> locality = component.path("longText").asText(null);
+                    default -> {
+                    }
+                }
+            }
+        }
+        String address = place.path("formattedAddress").asText(null);
+        String name = locality != null ? locality : place.path("displayName").path("text").asText(address);
+        if (name == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new Place(null, null, name, address, latitude, longitude, country));
     }
 
     private GoogleSettings requireKey() {

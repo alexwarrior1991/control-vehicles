@@ -21,7 +21,8 @@ public final class MigrationRunner {
 
     /** Every migration, in order. The version is the index + 1. */
     public static final List<String> MIGRATIONS = List.of("V1__init.sql", "V2__trip_end_odometer.sql",
-            "V3__refuel_odometer_estimated.sql");
+            "V3__refuel_odometer_estimated.sql",
+            "V4__mobile.sql");
 
     private final Database database;
 

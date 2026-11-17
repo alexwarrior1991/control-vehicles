@@ -15,6 +15,8 @@ import com.alejandro.controlvehicles.domain.Trip;
 import com.alejandro.controlvehicles.domain.Vehicle;
 import com.alejandro.controlvehicles.integration.google.PlaceSuggestion;
 import com.alejandro.controlvehicles.service.AppSettings;
+import com.alejandro.controlvehicles.service.MobileService;
+import com.alejandro.controlvehicles.service.MobileSettings;
 import com.alejandro.controlvehicles.service.MonthlyReport;
 import com.alejandro.controlvehicles.service.SaveResult;
 import com.alejandro.controlvehicles.service.TripRow;
@@ -41,8 +43,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.alejandro.controlvehicles.support.Fixtures.withEnd;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -377,6 +381,119 @@ class ServicesTest {
         app.settings.save(new AppSettings(AppSettings.DEFAULTS.thresholds(), 10, "GALP", Country.PT));
         app.transfer.deleteAllData(true);
         assertEquals(AppSettings.DEFAULTS, app.settings.load());
+    }
+
+    // --- the drivers' phone app ------------------------------------------------------------------------------
+
+    /** The Apps Script web app: GET answers the export, POST (publish, ack) is acknowledged through its redirect. */
+    private void mobileBackend(String export) {
+        server.on("/exec", request -> "GET".equals(request.method()) && request.query().contains("action=export")
+                ? new FakeHttpServer.Response(200, export)
+                : FakeHttpServer.Response.redirect("/echo"));
+        server.on("/echo", request -> new FakeHttpServer.Response(200, "{\"ok\":true}"));
+        app.settings.saveMobileSettings(new MobileSettings(null, server.baseUrl() + "/exec", "s3cret"));
+    }
+
+    private List<String> mobilePosts(String action) {
+        return server.requests("/exec").stream().filter(r -> "POST".equals(r.method()))
+                .map(FakeHttpServer.Request::body).filter(b -> b.contains("\"action\":\"" + action + "\"")).toList();
+    }
+
+    @Test
+    void finishedTripsFromThePhonesBecomeNormalTripsAndAreAcknowledged() {
+        mobileBackend(FakeHttpServer.fixture("mobile-export.json"));
+
+        MobileService.PullResult result = app.mobile.pull();
+
+        assertEquals(1, result.imported());
+        assertEquals(1, result.waiting(), "a trip still in progress waits");
+        assertEquals(1, result.cancelled());
+        assertEquals(1, result.skipped().size());
+        assertTrue(result.skipped().getFirst().contains("vehicle 9999 ZZZ is not in this application"),
+                result.skipped().toString());
+
+        TripRow row = app.trips.rows().getFirst();
+        Trip trip = row.trip();
+        assertEquals(LocalDate.of(2026, 10, 28), trip.date());
+        assertEquals(LocalTime.of(8, 15), trip.startTime());
+        assertEquals(LocalTime.of(9, 20), trip.endTime());
+        assertEquals(100_000, trip.startOdometerKm());
+        assertEquals(100_074, trip.endOdometerKm());
+        assertEquals(new BigDecimal("3.10"), trip.tollsPaid());
+        assertEquals(madrid.id(), trip.originPlaceId(), "a GPS point 30 m from a stored place is that place");
+        assertEquals(toledo.id(), trip.destinationPlaceId());
+        assertNotNull(trip.route(), "Google's route, as for any trip");
+        assertNotNull(trip.price());
+        assertTrue(trip.notes().startsWith("From mobile"));
+
+        String ack = mobilePosts("ack").getFirst();
+        assertTrue(ack.contains("trip-closed") && ack.contains("trip-cancelled"), ack);
+        assertFalse(ack.contains("trip-open") || ack.contains("trip-unknown-vehicle"), "those stay on the Sheet");
+        assertTrue(ack.contains("\"secret\":\"s3cret\""));
+    }
+
+    @Test
+    void pullingAgainNeverImportsATripTwice() {
+        mobileBackend(FakeHttpServer.fixture("mobile-export.json"));
+        app.mobile.pull();
+        MobileService.PullResult again = app.mobile.pull();
+        assertEquals(0, again.imported());
+        assertEquals(1, app.trips.rows().size());
+        assertTrue(mobilePosts("ack").getLast().contains("trip-closed"), "acknowledged again, in case the first was lost");
+    }
+
+    @Test
+    void aNewGpsPointIsNamedByGoogleOrByItsCoordinates() {
+        String export = FakeHttpServer.fixture("mobile-export.json")
+                .replace("\"startLat\": \"40.4169\", \"startLng\": \"-3.7036\", \"startAccuracy\": \"12\"",
+                        "\"startLat\": \"41.6488\", \"startLng\": \"-0.8891\", \"startAccuracy\": \"12\"")
+                .replace("\"endLat\": \"39.8628316\", \"endLng\": \"-4.0273231\"",
+                        "\"endLat\": \"42.0\", \"endLng\": \"-1.0\"");
+        mobileBackend(export);
+        server.on("/v1/places:searchNearby", request -> request.body().contains("41.6488")
+                ? new FakeHttpServer.Response(200, FakeHttpServer.fixture("places-nearby-toledo.json"))
+                : new FakeHttpServer.Response(200, "{}"));
+
+        app.mobile.pull();
+
+        Trip trip = app.trips.rows().getFirst().trip();
+        Place origin = app.places.findById(trip.originPlaceId()).orElseThrow();
+        assertEquals("Toledo", origin.name(), "the town of the nearest place Google knows");
+        assertEquals(41.6488, origin.latitude(), "but the coordinates of the phone");
+        Place destination = app.places.findById(trip.destinationPlaceId()).orElseThrow();
+        assertEquals("GPS 42.00000, -1.00000", destination.name());
+    }
+
+    @Test
+    void publishingSendsEachDriversTokenAndEachVehiclesLastKmAndANewLinkRevokesTheOld() {
+        mobileBackend("{\"ok\":true,\"trips\":[]}");
+        app.trips.save(withEnd(trip(TODAY.minusDays(1), "08:00", "09:10", madrid, toledo, 100_000), 100_074), null);
+
+        int[] counts = app.mobile.publish();
+        String link = app.mobile.link(driver.id());
+
+        assertArrayEquals(new int[]{1, 1}, counts);
+        String token = link.substring(link.indexOf("&d=") + 3);
+        assertTrue(link.startsWith("https://alexwarrior1991.github.io/control-vehicles-mobile/?api="), link);
+        assertTrue(link.contains(java.net.URLEncoder.encode(server.baseUrl() + "/exec",
+                java.nio.charset.StandardCharsets.UTF_8)));
+        String published = mobilePosts("publish").getFirst();
+        assertTrue(published.contains("\"token\":\"" + token + "\""), published);
+        assertTrue(published.contains("\"lastKm\":100074"), published);
+        assertEquals(link, app.mobile.link(driver.id()), "the same link every time");
+
+        String renewed = app.mobile.newLink(driver.id());
+        assertNotEquals(link, renewed);
+        assertTrue(mobilePosts("publish").getLast().contains(renewed.substring(renewed.indexOf("&d=") + 3)));
+        assertFalse(mobilePosts("publish").getLast().contains(token));
+    }
+
+    @Test
+    void theMobileSecretStaysOnThisComputer() throws Exception {
+        mobileBackend("{\"ok\":true,\"trips\":[]}");
+        Path exported = home.resolve("shared.db");
+        app.transfer.exportTo(exported);
+        assertFalse(new String(Files.readAllBytes(exported), StandardCharsets.ISO_8859_1).contains("s3cret"));
     }
 
     @Test

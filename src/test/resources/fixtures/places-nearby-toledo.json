@@ -1,0 +1,13 @@
+{
+  "places": [
+    {
+      "formattedAddress": "Av. de Europa, 1, 45005 Toledo, Spain",
+      "addressComponents": [
+        {"longText": "1", "shortText": "1", "types": ["street_number"]},
+        {"longText": "Toledo", "shortText": "Toledo", "types": ["locality", "political"]},
+        {"longText": "Spain", "shortText": "ES", "types": ["country", "political"]}
+      ],
+      "displayName": {"text": "Gasolinera Cepsa", "languageCode": "es"}
+    }
+  ]
+}
