@@ -4,7 +4,8 @@ Run from the repository root (needs Pillow, and ImageMagick's `convert` for the 
 
     python3 scripts/draw_icon.py
 
-It writes src/main/resources/com/alejandro/controlvehicles/ui/icons/icon-<size>.png and app.ico.
+It writes src/main/resources/com/alejandro/controlvehicles/ui/icons/icon-<size>.png and app.ico, and the icons
+of the drivers' phone app in mobile/pwa/icons.
 """
 import pathlib
 import subprocess
@@ -19,6 +20,8 @@ DARK = (29, 39, 51)
 AMBER = (245, 166, 35)
 OUT = pathlib.Path("src/main/resources/com/alejandro/controlvehicles/ui/icons")
 SIZES = [16, 24, 32, 48, 64, 128, 256]
+PWA = pathlib.Path("mobile/pwa/icons")
+PWA_SIZES = [180, 192, 512]
 
 
 def draw() -> Image.Image:
@@ -62,6 +65,9 @@ def main() -> None:
         big.resize((size, size), Image.LANCZOS).save(path, optimize=True)
         files.append(str(path))
     subprocess.run(["convert", *files, str(OUT / "app.ico")], check=True)
+    PWA.mkdir(parents=True, exist_ok=True)
+    for size in PWA_SIZES:
+        big.resize((size, size), Image.LANCZOS).save(PWA / f"icon-{size}.png", optimize=True)
 
 
 if __name__ == "__main__":

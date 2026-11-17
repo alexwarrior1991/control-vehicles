@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#1f6feb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Trayectos">
+    <title>Control Vehicles</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+    <img src="icons/icon-192.png" alt="" class="logo">
+    <div>
+        <div class="app">Control Vehicles</div>
+        <div id="hello" class="hello"></div>
+    </div>
+</header>
+
+<main>
+    <section id="screen-link" hidden>
+        <p class="big" data-text="openLink"></p>
+    </section>
+
+    <section id="screen-idle" hidden>
+        <label for="vehicle" data-text="vehicle"></label>
+        <select id="vehicle"></select>
+        <label for="start-km" data-text="startKm"></label>
+        <input id="start-km" type="number" inputmode="numeric" min="0" step="1" autocomplete="off">
+        <div id="last-km" class="hint"></div>
+        <button id="start" class="action start" data-text="start"></button>
+    </section>
+
+    <section id="screen-running" hidden>
+        <div class="running">
+            <div class="dot"></div>
+            <div id="running-text"></div>
+        </div>
+        <label for="end-km" data-text="endKm"></label>
+        <input id="end-km" type="number" inputmode="numeric" min="0" step="1" autocomplete="off">
+        <label for="tolls" data-text="tolls"></label>
+        <input id="tolls" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+        <button id="end" class="action end" data-text="end"></button>
+        <button id="cancel" class="link" data-text="cancel"></button>
+    </section>
+
+    <div id="message" class="message" hidden></div>
+</main>
+
+<footer>
+    <div id="sync" class="sync"></div>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
