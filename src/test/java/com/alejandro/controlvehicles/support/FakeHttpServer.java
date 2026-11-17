@@ -25,7 +25,16 @@ public final class FakeHttpServer implements AutoCloseable {
         }
     }
 
-    public record Response(int status, String body) {
+    public record Response(int status, String body, Map<String, String> headers) {
+
+        public Response(int status, String body) {
+            this(status, body, Map.of());
+        }
+
+        /** A 302 to the location, as Apps Script answers every call. */
+        public static Response redirect(String location) {
+            return new Response(302, "", Map.of("Location", location));
+        }
     }
 
     private final HttpServer server;
@@ -50,8 +59,11 @@ public final class FakeHttpServer implements AutoCloseable {
             Response response = route.apply(request);
             byte[] bytes = response.body().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
-            exchange.sendResponseHeaders(response.status(), bytes.length);
-            exchange.getResponseBody().write(bytes);
+            response.headers().forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
+            exchange.sendResponseHeaders(response.status(), bytes.length == 0 ? -1 : bytes.length);
+            if (bytes.length > 0) {
+                exchange.getResponseBody().write(bytes);
+            }
             exchange.close();
         });
         server.start();

@@ -49,11 +49,17 @@ does not extend `Application`.
   `AppLook.load()` registers both before the first scene. Every scene and every dialog goes through
   `AppLook.style(...)`, which adds `app.css` and the icon to its window: a dialog has its own scene and window and
   would otherwise fall back to the default font and Java's icon.
+- The drivers' phone app is the separate repository `control-vehicles-mobile`; what both sides send each other is
+  its `CONTRACT.md`, implemented here by `integration/mobile/MobileClient` and `service/MobileService`: a change
+  to a call or a field is made in both repositories, and fields are only added. The web app URL and its admin
+  secret are local settings (`settings.properties`), like the Google key. A pulled trip keeps the phone's id
+  (`trip.mobile_id`, `V4`) and is never imported twice; each driver's link token is `driver.mobile_token`.
 - External endpoints go through `AppContext.Endpoints` so tests point them at `support.FakeHttpServer`.
 
 ## Tests
 
-`DomainTest` (rules), `PersistenceTest` (SQLite on a temp file), `ClientsTest` (Google, MITECO, DGEG against
-fixtures in `src/test/resources/fixtures`), `ServicesTest` (the whole `AppContext` against the fake server:
-saving trips, prices and their fallbacks, the monthly report, CSV, export/import), `ImportTest` (CSV and .xlsx
-reading, the column guess and the import rules), `InputsTest` (typed numbers, times and dates). Screens are not unit-tested.
+`DomainTest` (rules), `PersistenceTest` (SQLite on a temp file), `ClientsTest` (Google, MITECO, DGEG and the phone
+app's backend against fixtures in `src/test/resources/fixtures`), `ServicesTest` (the whole `AppContext` against the
+fake server: saving trips, prices and their fallbacks, the monthly report, CSV, export/import, publishing to and
+pulling from the phone app), `ImportTest` (CSV and .xlsx reading, the column guess and the import rules),
+`InputsTest` (typed numbers, times and dates). Screens are not unit-tested.

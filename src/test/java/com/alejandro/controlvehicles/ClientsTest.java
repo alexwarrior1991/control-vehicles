@@ -14,6 +14,8 @@ import com.alejandro.controlvehicles.integration.google.GoogleSettings;
 import com.alejandro.controlvehicles.integration.google.PlaceSuggestion;
 import com.alejandro.controlvehicles.integration.google.PlacesClient;
 import com.alejandro.controlvehicles.integration.google.RoutesClient;
+import com.alejandro.controlvehicles.integration.mobile.MobileClient;
+import com.alejandro.controlvehicles.integration.mobile.MobileTrip;
 import com.alejandro.controlvehicles.support.FakeHttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -23,10 +25,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -175,6 +180,83 @@ class ClientsTest {
     }
 
     @Test
+    void theMobileExportIsReadFieldByFieldFromTheSheetsText() {
+        server.onFixture("/exec", "mobile-export.json");
+        List<MobileTrip> trips = mobile("s3cret").export();
+
+        assertEquals(4, trips.size());
+        MobileTrip closed = trips.getFirst();
+        assertEquals("trip-closed", closed.id());
+        assertEquals(MobileTrip.Status.CLOSED, closed.status());
+        assertEquals(LocalDateTime.of(2026, 10, 28, 8, 15), closed.startAt());
+        assertEquals(40.4169, closed.startLat());
+        assertEquals(100_074, closed.endKm());
+        assertEquals(new BigDecimal("3.10"), closed.tolls());
+        MobileTrip open = trips.get(1);
+        assertEquals(MobileTrip.Status.OPEN, open.status());
+        assertNull(open.endAt());
+        assertNull(open.endKm());
+        assertFalse(trips.get(2).hasStartPosition());
+        assertEquals("action=export&secret=s3cret", server.requests().getFirst().query());
+    }
+
+    @Test
+    void publishingAndAcknowledgingFollowAppsScriptsRedirect() {
+        server.on("/exec", request -> FakeHttpServer.Response.redirect("/echo?user_content_key=abc"));
+        server.on("/echo", request -> new FakeHttpServer.Response(200, "{\"ok\":true,\"drivers\":1,\"vehicles\":1}"));
+        MobileClient client = mobile("s3cret");
+
+        client.publish(List.of(new MobileClient.PublishedDriver("tok", 1, "Ana")),
+                List.of(new MobileClient.PublishedVehicle(7, "1234 KLM", "1234 KLM · Kangoo", 120_423)));
+        client.ack(List.of("trip-1", "trip-2"));
+        client.ack(List.of());
+
+        List<FakeHttpServer.Request> posts = server.requests("/exec");
+        assertEquals(2, posts.size(), "an empty ack sends nothing");
+        assertTrue(posts.get(0).body().contains("\"action\":\"publish\""));
+        assertTrue(posts.get(0).body().contains("\"token\":\"tok\""));
+        assertTrue(posts.get(0).body().contains("\"lastKm\":120423"));
+        assertTrue(posts.get(1).body().contains("\"ids\":[\"trip-1\",\"trip-2\"]"));
+        List<FakeHttpServer.Request> followed = server.requests("/echo");
+        assertEquals(2, followed.size());
+        assertEquals("GET", followed.getFirst().method(), "Apps Script's answer is fetched with a GET");
+    }
+
+    @Test
+    void aRefusalOfTheBackendSaysWhy() {
+        server.on("/exec", request -> new FakeHttpServer.Response(200,
+                "{\"ok\":false,\"error\":\"Wrong admin secret\"}"));
+        ExternalApiException e = assertThrows(ExternalApiException.class, () -> mobile("bad").export());
+        assertTrue(e.getMessage().contains("Wrong admin secret"), e.getMessage());
+        assertTrue(e.getMessage().contains("Settings → Mobile"));
+    }
+
+    @Test
+    void withoutTheMobileConnectionNothingIsCalled() {
+        MobileClient client = new MobileClient(() -> new MobileClient.Connection("", ""), http);
+        assertThrows(ExternalApiException.class, client::export);
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void aGpsPointIsNamedByTheNearestPlaceGoogleKnowsKeepingItsCoordinates() {
+        server.onFixture("/v1/places:searchNearby", "places-nearby-toledo.json");
+        Place place = new PlacesClient(() -> google, http).nearest(39.86, -4.02).orElseThrow();
+
+        assertEquals("Toledo", place.name());
+        assertEquals("Av. de Europa, 1, 45005 Toledo, Spain", place.address());
+        assertEquals(Country.ES, place.country());
+        assertEquals(39.86, place.latitude());
+        assertNull(place.googlePlaceId(), "the route goes from where the phone was, not from the place");
+        String body = server.requests().getFirst().body();
+        assertTrue(body.contains("\"rankPreference\":\"DISTANCE\""));
+        assertTrue(body.contains("\"radius\":150.0"));
+
+        server.on("/v1/places:searchNearby", request -> new FakeHttpServer.Response(200, "{}"));
+        assertTrue(new PlacesClient(() -> google, http).nearest(0, 0).isEmpty());
+    }
+
+    @Test
     void mitecoPricesAreParsedWithDecimalCommasAndOnlyWhenThereIsOne() {
         server.onFixture("/EstacionesTerrestres", "miteco-stations.json");
         SpainMitecoProvider provider = new SpainMitecoProvider(server.baseUrl(), http, CLOCK);
@@ -227,6 +309,10 @@ class ClientsTest {
                   "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "%s",
                     "domain": "googleapis.com", "metadata": {"service": "%s", "consumer": "projects/123"}}]}}
                 """.formatted(status, reason, service));
+    }
+
+    private MobileClient mobile(String secret) {
+        return new MobileClient(() -> new MobileClient.Connection(server.baseUrl() + "/exec", secret), http);
     }
 
     private RoutesClient routes() {

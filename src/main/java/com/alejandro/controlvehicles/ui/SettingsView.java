@@ -3,8 +3,10 @@ package com.alejandro.controlvehicles.ui;
 import com.alejandro.controlvehicles.app.AppContext;
 import com.alejandro.controlvehicles.domain.Country;
 import com.alejandro.controlvehicles.domain.DivergenceThresholds;
+import com.alejandro.controlvehicles.domain.Driver;
 import com.alejandro.controlvehicles.service.AppSettings;
 import com.alejandro.controlvehicles.service.Inputs;
+import com.alejandro.controlvehicles.service.MobileSettings;
 import javafx.application.HostServices;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -19,6 +21,8 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.stage.FileChooser;
 
 import java.io.File;
@@ -49,6 +53,12 @@ public final class SettingsView implements AppView {
     private final TextField brand = new TextField();
     private final ComboBox<Country> defaultCountry = new ComboBox<>();
     private final Label rulesStatus = new Label();
+    private final TextField mobileAppUrl = new TextField();
+    private final TextField mobileApiUrl = new TextField();
+    private final PasswordField mobileSecret = new PasswordField();
+    private final Label mobileStatus = new Label();
+    private final ComboBox<Driver> linkDriver = new ComboBox<>();
+    private final TextField driverLink = new TextField();
 
     public SettingsView(AppContext context, HostServices hostServices, Runnable onDatabaseReplaced) {
         this.context = context;
@@ -107,7 +117,8 @@ public final class SettingsView implements AppView {
                 .addWide(hint("Deletes every driver, vehicle, place, trip, refuel and stored price. A backup is saved"
                         + " next to the database first: importing it brings everything back."));
 
-        content.getChildren().addAll(section("Google"), google, section("Rules"), rules, section("Database"),
+        content.getChildren().addAll(section("Google"), google, section("Mobile"), mobileForm(), section("Rules"),
+                rules, section("Database"),
                 database);
     }
 
@@ -126,8 +137,18 @@ public final class SettingsView implements AppView {
 
     @Override
     public void refresh() {
-        Background.run(() -> new Object[]{context.settings.googleApiKey(), context.settings.load()}, loaded -> {
+        Background.run(() -> new Object[]{context.settings.googleApiKey(), context.settings.load(),
+                context.settings.mobileSettings(), context.fleet.activeDrivers()}, loaded -> {
             apiKey.setText((String) loaded[0]);
+            MobileSettings mobile = (MobileSettings) loaded[2];
+            mobileAppUrl.setText(mobile.appUrl());
+            mobileApiUrl.setText(mobile.apiUrl());
+            mobileSecret.setText(mobile.secret());
+            @SuppressWarnings("unchecked")
+            java.util.List<Driver> activeDrivers = (java.util.List<Driver>) loaded[3];
+            linkDriver.getItems().setAll(activeDrivers);
+            driverLink.clear();
+            mobileStatus.setText("");
             AppSettings settings = (AppSettings) loaded[1];
             DivergenceThresholds t = settings.thresholds();
             distancePercent.setText(String.valueOf(t.distancePercent()));
@@ -143,6 +164,86 @@ public final class SettingsView implements AppView {
             keyStatus.setText("");
             rulesStatus.setText("");
         });
+    }
+
+    /**
+     * The drivers' phone app (repository control-vehicles-mobile): its addresses and secret, publishing drivers and
+     * vehicles, and each driver's personal link.
+     */
+    private Node mobileForm() {
+        mobileApiUrl.setPromptText("https://script.google.com/macros/s/…/exec");
+        mobileStatus.getStyleClass().add("field-hint");
+        mobileStatus.setWrapText(true);
+        mobileStatus.setMaxWidth(640);
+        driverLink.setEditable(false);
+        Button save = new Button("Save");
+        save.getStyleClass().add("primary");
+        save.setOnAction(event -> mobileAction(() -> {
+            saveMobile();
+            return "Saved.";
+        }));
+        Button test = new Button("Test");
+        test.setOnAction(event -> mobileAction(() -> {
+            saveMobile();
+            int pending = context.mobile.pending();
+            return "Connected: " + pending + (pending == 1 ? " trip" : " trips") + " waiting on the Sheet.";
+        }));
+        Button publish = new Button("Publish drivers and vehicles");
+        publish.setOnAction(event -> mobileAction(() -> {
+            saveMobile();
+            int[] counts = context.mobile.publish();
+            return "Published " + counts[0] + " drivers and " + counts[1] + " vehicles.";
+        }));
+        Button copy = new Button("Copy link");
+        copy.setOnAction(event -> driverLinkAction(false));
+        Button renew = new Button("New link");
+        renew.setOnAction(event -> {
+            if (linkDriver.getValue() != null && Dialogs.confirm("New link for " + linkDriver.getValue().name() + "?",
+                    "The current link stops working: send them the new one.")) {
+                driverLinkAction(true);
+            }
+        });
+        linkDriver.setPrefWidth(240);
+        return new FormGrid()
+                .add("Web app URL", mobileApiUrl)
+                .add("Admin secret", mobileSecret)
+                .add("Phone app address", mobileAppUrl)
+                .add("", new HBox(8, save, test, publish))
+                .add("", mobileStatus)
+                .add("Driver's link", new HBox(8, linkDriver, copy, renew))
+                .add("", driverLink)
+                .addWide(hint("The phone app and how to set up its Google Sheet: repository control-vehicles-mobile."
+                        + " The URL and the secret stay on this computer, never in the exported database. Publish"
+                        + " again after adding or changing drivers or vehicles."));
+    }
+
+    private void saveMobile() {
+        context.settings.saveMobileSettings(new MobileSettings(mobileAppUrl.getText(), mobileApiUrl.getText(),
+                mobileSecret.getText()));
+    }
+
+    private void mobileAction(java.util.concurrent.Callable<String> work) {
+        mobileStatus.setText("Working…");
+        Background.run(work, mobileStatus::setText,
+                failure -> mobileStatus.setText("It did not work: " + Dialogs.message(failure)));
+    }
+
+    private void driverLinkAction(boolean renew) {
+        Driver driver = linkDriver.getValue();
+        if (driver == null) {
+            mobileStatus.setText("Choose a driver.");
+            return;
+        }
+        saveMobile();
+        Background.run(() -> renew ? context.mobile.newLink(driver.id()) : context.mobile.link(driver.id()), link -> {
+            driverLink.setText(link);
+            ClipboardContent clip = new ClipboardContent();
+            clip.putString(link);
+            Clipboard.getSystemClipboard().setContent(clip);
+            mobileStatus.setText((renew ? "New link" : "Link") + " of " + driver.name()
+                    + " copied: send it to them (WhatsApp, e-mail…)." + (renew ? " The old one no longer works."
+                    : " Publish drivers and vehicles first if they are new."));
+        }, failure -> mobileStatus.setText("It did not work: " + Dialogs.message(failure)));
     }
 
     private void testKey() {

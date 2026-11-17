@@ -8,8 +8,10 @@ import com.alejandro.controlvehicles.domain.Trip;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public final class TripRepository {
 
@@ -66,6 +68,16 @@ public final class TripRepository {
                     WHERE id = ?""", append(values, now, trip.id()));
             return trip;
         });
+    }
+
+    /** The phone ids of the trips pulled from the phone app. */
+    public Set<String> mobileIds() {
+        return database.read(c -> new HashSet<>(Sql.list(c,
+                "SELECT mobile_id FROM trip WHERE mobile_id IS NOT NULL", rs -> rs.getString(1))));
+    }
+
+    public void setMobileId(long tripId, String mobileId) {
+        database.transaction(c -> Sql.update(c, "UPDATE trip SET mobile_id = ? WHERE id = ?", mobileId, tripId));
     }
 
     public void delete(long id) {

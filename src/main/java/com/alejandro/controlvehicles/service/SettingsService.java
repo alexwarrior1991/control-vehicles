@@ -21,6 +21,11 @@ import java.util.Properties;
 public final class SettingsService {
 
     private static final String API_KEY = "google.apiKey";
+    private static final String MOBILE_APP_URL = "mobile.appUrl";
+    private static final String MOBILE_API_URL = "mobile.apiUrl";
+    private static final String MOBILE_SECRET = "mobile.secret";
+    /** Where GitHub Pages publishes the phone app (repository control-vehicles-mobile). */
+    public static final String DEFAULT_MOBILE_APP_URL = "https://alexwarrior1991.github.io/control-vehicles-mobile/";
 
     private final SettingRepository repository;
     private final Path localFile;
@@ -69,8 +74,27 @@ public final class SettingsService {
     }
 
     public void saveGoogleApiKey(String key) {
+        saveLocal(Map.of(API_KEY, key == null ? "" : key.trim()));
+    }
+
+    /**
+     * Where the phone app is published, the Apps Script web app it and the desktop talk to, and that script's admin
+     * secret: local like the Google key, because the secret opens every driver's trips and the database is shared.
+     */
+    public MobileSettings mobileSettings() {
         Properties properties = localProperties();
-        properties.setProperty(API_KEY, key == null ? "" : key.trim());
+        return new MobileSettings(properties.getProperty(MOBILE_APP_URL, ""),
+                properties.getProperty(MOBILE_API_URL, ""), properties.getProperty(MOBILE_SECRET, ""));
+    }
+
+    public void saveMobileSettings(MobileSettings settings) {
+        saveLocal(Map.of(MOBILE_APP_URL, settings.appUrl(), MOBILE_API_URL, settings.apiUrl(), MOBILE_SECRET,
+                settings.secret()));
+    }
+
+    private void saveLocal(Map<String, String> values) {
+        Properties properties = localProperties();
+        values.forEach(properties::setProperty);
         try {
             Files.createDirectories(localFile.getParent());
             try (OutputStream out = Files.newOutputStream(localFile)) {

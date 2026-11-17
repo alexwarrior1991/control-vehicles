@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "trips": [
+    {
+      "id": "trip-closed", "driverId": "1", "driverName": "Ana Pérez", "vehicleId": "1", "plate": "1234 ABC",
+      "startAt": "2026-10-28T08:15", "startLat": "40.4169", "startLng": "-3.7036", "startAccuracy": "12",
+      "startKm": "100000", "endAt": "2026-10-28T09:20", "endLat": "39.8628316", "endLng": "-4.0273231",
+      "endAccuracy": "8", "endKm": "100074", "tolls": "3.10", "status": "CLOSED", "imported": "",
+      "updatedAt": "2026-10-28T09:20:31.000Z"
+    },
+    {
+      "id": "trip-open", "driverId": "1", "driverName": "Ana Pérez", "vehicleId": "1", "plate": "1234 ABC",
+      "startAt": "2026-10-29T08:00", "startLat": "40.4169", "startLng": "-3.7036", "startAccuracy": "15",
+      "startKm": "100120", "endAt": "", "endLat": "", "endLng": "", "endAccuracy": "", "endKm": "", "tolls": "",
+      "status": "OPEN", "imported": "", "updatedAt": "2026-10-29T08:00:05.000Z"
+    },
+    {
+      "id": "trip-cancelled", "driverId": "1", "driverName": "Ana Pérez", "vehicleId": "1", "plate": "1234 ABC",
+      "startAt": "2026-10-27T18:00", "startLat": "", "startLng": "", "startAccuracy": "", "startKm": "99990",
+      "endAt": "", "endLat": "", "endLng": "", "endAccuracy": "", "endKm": "", "tolls": "", "status": "CANCELLED",
+      "imported": "", "updatedAt": "2026-10-27T18:01:00.000Z"
+    },
+    {
+      "id": "trip-unknown-vehicle", "driverId": "1", "driverName": "Ana Pérez", "vehicleId": "99", "plate": "9999 ZZZ",
+      "startAt": "2026-10-28T12:00", "startLat": "", "startLng": "", "startAccuracy": "", "startKm": "5000",
+      "endAt": "2026-10-28T12:30", "endLat": "", "endLng": "", "endAccuracy": "", "endKm": "", "tolls": "",
+      "status": "CLOSED", "imported": "", "updatedAt": "2026-10-28T12:30:00.000Z"
+    }
+  ]
+}
